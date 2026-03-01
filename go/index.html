@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>천하제일 듣치대회</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --pink-50:  #fff5fa;
+  --pink-100: #ffe8f3;
+  --pink-200: #ffd0e8;
+  --pink-300: #ffadd6;
+  --pink-400: #ff85c0;
+  --pink-500: #f260a8;
+  --pink-600: #d44090;
+  --rose-50:  #fff8fb;
+  --text:     #3a1030;
+  --sub:      #c080a8;
+  --border:   #fadadf;  
+  --shadow:   0 4px 20px rgba(240,100,160,0.10);
+  --popup-shadow-color: rgba(200,50,100,0.25);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+  background: linear-gradient(135deg, #fff5fa 0%, #ffeaf5 50%, #ffe0f0 100%);
+  min-height: 100vh;
+  padding: 32px 20px 40px;
+  color: var(--text);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.header h1 {
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--pink-500);
+  letter-spacing: 3px;
+  line-height: 1.4;
+  text-shadow: 0 2px 10px rgba(210,100,150,0.12);
+  font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Noto Sans KR', sans-serif;
+}
+
+/* 사용방법 */
+.guide-box {
+  background: #fff;
+  border: 1.5px solid var(--pink-200);
+  border-radius: 14px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 12px rgba(200,50,100,0.07);
+}
+
+.guide-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--pink-500);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.guide-title::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 12px;
+  background: var(--pink-400);
+  border-radius: 2px;
+}
+
+.guide-steps { display: flex; flex-direction: column; gap: 8px; }
+
+.guide-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  color: #5a2a40;
+  line-height: 1.6;
+}
+
+.guide-step .num {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  background: var(--pink-400);
+  color: #fff;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.guide-step .tip {
+  display: inline;
+  background: var(--pink-100);
+  color: var(--pink-600);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 20px;
+  margin-left: 4px;
+  white-space: nowrap;
+}
+
+/* 카드 */
+.card {
+  background: #fff;
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: var(--shadow);
+  margin-bottom: 0;
+}
+
+/* 재생목록 */
+#playlist {
+  border: 2px dashed var(--pink-300);
+  border-radius: 12px;
+  height: 260px;
+  overflow-y: auto;
+  padding: 10px;
+  margin-bottom: 16px;
+  position: relative;
+  background: var(--pink-50);
+}
+
+#playlist::-webkit-scrollbar { width: 5px; }
+#playlist::-webkit-scrollbar-thumb { background: var(--pink-200); border-radius: 3px; }
+
+.playlist-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background .15s;
+}
+
+.playlist-item:hover { background: var(--pink-100); }
+.playlist-item.selected { background: var(--pink-200); font-weight: 700; color: var(--pink-600); }
+
+#hint {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 15px;
+  padding: 12px;
+  box-sizing: border-box;
+  color: rgba(200,80,130,0.20);
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: normal;
+  word-break: break-all;
+  pointer-events: none;
+  overflow: hidden;
+  font-weight: 500;
+}
+
+/* 컨트롤 */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+#playPauseBtn {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 0;
+  width: 148px;
+  background: linear-gradient(135deg, var(--pink-400), var(--pink-500));
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  letter-spacing: .5px;
+  box-shadow: 0 3px 12px rgba(200,100,150,0.20);
+  transition: all .2s;
+}
+
+#playPauseBtn:hover {
+  background: linear-gradient(135deg, var(--pink-500), var(--pink-600));
+  transform: translateY(-1px);
+  box-shadow: 0 5px 16px rgba(200,100,150,0.28);
+}
+
+.speed-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--sub);
+  font-weight: 600;
+}
+
+.speed-btn {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 9px;
+  cursor: pointer;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--sub);
+  transition: all .15s;
+}
+
+.speed-btn:hover { background: var(--pink-50); border-color: var(--pink-300); color: var(--pink-500); }
+.speed-btn.active { background: var(--pink-400); color: #fff; border-color: var(--pink-400); }
+
+.volume-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.volume-icon { font-size: 15px; }
+
+#volumeRange {
+  width: 90px;
+  accent-color: var(--pink-400);
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+#progress {
+  width: 100%;
+  margin-top: 14px;
+  accent-color: var(--pink-400);
+  cursor: pointer;
+}
+
+#timeDisplay {
+  margin-top: 6px;
+  text-align: right;
+  font-size: 12px;
+  color: var(--sub);
+  font-weight: 500;
+}
+
+/* 드롭 오버레이 */
+#dropOverlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-bg, rgba(240,80,150,0.10));
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  pointer-events: none;
+  backdrop-filter: blur(2px);
+}
+
+#dropOverlay.active { display: flex; }
+
+#dropOverlay .text {
+  font-size: 26px;
+  font-weight: 900;
+  color: #fff;
+  padding: 26px 48px;
+  border-radius: 16px;
+  background: var(--overlay-text-bg, rgba(240,80,150,0.40));
+  letter-spacing: 2px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+}
+
+/* 답안 버튼 */
+.ans-btn {
+  flex-shrink: 0;
+  margin-left: 10px;
+  padding: 4px 10px;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  background: #fff;
+  border: 1.5px solid var(--pink-400);
+  color: var(--pink-500);
+  border-radius: 6px;
+  transition: all .15s;
+  white-space: nowrap;
+}
+
+.ans-btn:hover { background: var(--pink-400); color: #fff; }
+.ans-btn:disabled { border-color: #e0d0d8; color: #d0b8c4; cursor: not-allowed; background: #fff; }
+
+/* 답안 팝업 */
+#textPreview {
+  display: none;
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 500px;
+  height: 500px;
+  background: white;
+  border: 2px solid var(--pink-400);
+  border-radius: 14px;
+  box-shadow: 0 16px 48px var(--popup-shadow-color, rgba(200,50,100,0.25));
+  z-index: 10001;
+  flex-direction: column;
+  overflow: hidden;
+  transition: box-shadow 0.3s ease;
+}
+
+#previewHeader {
+  background: linear-gradient(135deg, var(--pink-400), var(--pink-500));
+  color: white;
+  padding: 12px 16px;
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  letter-spacing: .3px;
+}
+
+#previewContent {
+  flex: 1;
+  padding: 14px;
+  font-size: 14px;
+  line-height: 1.8;
+  border: none;
+  resize: none;
+  outline: none;
+  background: var(--rose-50);
+  font-family: 'Noto Sans KR', sans-serif;
+  color: var(--text);
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+#closePreview {
+  cursor: pointer;
+  background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.5);
+  color: white;
+  border-radius: 5px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: 'Noto Sans KR', sans-serif;
+  transition: background .15s;
+}
+
+#closePreview:hover { background: rgba(255,255,255,0.35); }
+
+#copyAnswerBtn {
+  cursor: pointer;
+  background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.5);
+  color: white;
+  border-radius: 5px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: 'Noto Sans KR', sans-serif;
+  transition: all .15s;
+  white-space: nowrap;
+}
+#copyAnswerBtn:hover { background: rgba(255,255,255,0.35); }
+#copyAnswerBtn.copied { background: rgba(255,255,255,0.55); }
+.preview-header-btns { display: flex; align-items: center; gap: 6px; }
+
+@media (max-width: 500px) {
+  body { padding: 20px 14px 32px; }
+  #textPreview { width: 94vw; height: 80vh; }
+  #playPauseBtn { width: 130px; }
+}
+
+/* ── 테마 스위처 ── */
+.theme-switcher {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.theme-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border-radius: 8px;
+  border: none;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .18s ease;
+  position: relative;
+}
+
+.theme-btn .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: all .18s ease;
+}
+
+/* 비활성 상태: 각 테마 색상을 연하게 */
+.theme-btn.t-pink    { background: #fce8ed; color: #c06070; }
+.theme-btn.t-pink    .dot { background: #e8909a; }
+.theme-btn.t-purple  { background: #ece8f8; color: #7868a8; }
+.theme-btn.t-purple  .dot { background: #9b8ec4; }
+.theme-btn.t-orange  { background: #fff0e0; color: #c07030; }
+.theme-btn.t-orange  .dot { background: #ffa060; }
+.theme-btn.t-mint    { background: #e0f8f2; color: #409880; }
+.theme-btn.t-mint    .dot { background: #6dcfb8; }
+.theme-btn.t-skyblue { background: #ddf0fc; color: #2878a8; }
+.theme-btn.t-skyblue .dot { background: #4dc8e8; }
+.theme-btn.t-gray    { background: #ebebeb; color: #666; }
+.theme-btn.t-gray    .dot { background: #9a9a9a; }
+
+.theme-btn:hover { filter: brightness(0.94); transform: translateY(-1px); }
+
+/* 활성 상태: 진한 배경 + 흰 텍스트 */
+.theme-btn.t-pink.on    { background: linear-gradient(135deg,#f0a0b0,#d87080); color:#fff; box-shadow:0 3px 12px rgba(216,112,128,0.40); transform:translateY(-1px); }
+.theme-btn.t-purple.on  { background: linear-gradient(135deg,#b0a0d8,#8878b8); color:#fff; box-shadow:0 3px 12px rgba(136,120,184,0.40); transform:translateY(-1px); }
+.theme-btn.t-orange.on  { background: linear-gradient(135deg,#ffb070,#f07828); color:#fff; box-shadow:0 3px 12px rgba(240,120,40,0.40); transform:translateY(-1px); }
+.theme-btn.t-mint.on    { background: linear-gradient(135deg,#7adfc8,#50b8a0); color:#fff; box-shadow:0 3px 12px rgba(80,184,160,0.40); transform:translateY(-1px); }
+.theme-btn.t-skyblue.on { background: linear-gradient(135deg,#60d0f0,#2898c8); color:#fff; box-shadow:0 3px 12px rgba(40,152,200,0.40); transform:translateY(-1px); }
+.theme-btn.t-gray.on    { background: linear-gradient(135deg,#b0b0b0,#777);    color:#fff; box-shadow:0 3px 12px rgba(120,120,120,0.40); transform:translateY(-1px); }
+
+.theme-btn.on .dot { background: rgba(255,255,255,0.9) !important; }
+</style>
+</head>
+<body>
+
+<div class="theme-switcher">
+  <button class="theme-btn t-pink on"    onclick="setTheme('pink',this)"><span class="dot"></span>핑크</button>
+  <button class="theme-btn t-purple"     onclick="setTheme('purple',this)"><span class="dot"></span>보라</button>
+  <button class="theme-btn t-orange"     onclick="setTheme('orange',this)"><span class="dot"></span>주황</button>
+  <button class="theme-btn t-mint"       onclick="setTheme('mint',this)"><span class="dot"></span>민트</button>
+  <button class="theme-btn t-skyblue"    onclick="setTheme('skyblue',this)"><span class="dot"></span>블루</button>
+  <button class="theme-btn t-gray"       onclick="setTheme('gray',this)"><span class="dot"></span>그레이</button>
+</div>
+
+<div class="header">
+  <h1>천 하 제 일 듣 치 대 회 ₍՞ • 🐽 • ՞₎ ﻿˚₊·—♡</h1>
+</div>
+
+<div class="guide-box">
+  <div class="guide-title">사용방법</div>
+  <div class="guide-steps">
+    <div class="guide-step">
+      <div class="num">1</div>
+      <div>듣치 파일(<strong>.mp3</strong>)을 아래 재생목록에 <strong>드래그앤드롭</strong>하거나 화면 아무 곳에 드롭하세요.</div>
+    </div>
+    <div class="guide-step">
+      <div class="num">2</div>
+      <div>목록에서 듣치 파일을 <strong>클릭</strong>해 선택 후 재생 버튼을 누르세요. <strong>더블클릭</strong>하면 처음부터 바로 재생됩니다.</div>
+    </div>
+    <div class="guide-step">
+      <div class="num">3</div>
+      <div>
+        듣치파일과 <strong>이름이 같은</strong> 메모장 파일(<strong>.txt</strong>)을 함께 드롭하면 <strong>[답안확인]</strong> 버튼이 활성화되어 답지를 볼 수 있습니다.
+        <span class="tip">예: 1번.mp3 + 1번.txt</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div id="playlist">
+    <div id="hint"></div>
+  </div>
+
+  <div class="controls">
+    <button id="playPauseBtn" onclick="togglePlay()">▶ 재생</button>
+    <div class="speed-group">
+      <span>속도</span>
+      <button class="speed-btn active" onclick="setSpeed(1.0, this)">1.0x</button>
+      <button class="speed-btn" onclick="setSpeed(1.05, this)">1.05x</button>
+      <button class="speed-btn" onclick="setSpeed(1.1, this)">1.1x</button>
+      <button class="speed-btn" onclick="setSpeed(1.2, this)">1.2x</button>
+    </div>
+    <div class="volume-group">
+      <span class="volume-icon">🔊</span>
+      <input type="range" id="volumeRange" min="0" max="1" step="0.05" value="1" oninput="setVolume(this.value)">
+    </div>
+  </div>
+
+  <input type="range" id="progress" value="0" min="0" max="100" disabled>
+  <div id="timeDisplay">00:00 / 00:00</div>
+</div>
+
+<div id="dropOverlay"><div class="text">재생목록에 추가 🎵</div></div>
+
+<div id="textPreview">
+  <div id="previewHeader">
+    <span>📄 답안 출력</span>
+    <div class="preview-header-btns">
+      <button id="copyAnswerBtn" onclick="copyAnswer()">📋 전체복사</button>
+      <button id="closePreview" onclick="document.getElementById('textPreview').style.display='none'">닫기</button>
+    </div>
+  </div>
+  <textarea id="previewContent" placeholder="내용이 여기에 표시됩니다."></textarea>
+</div>
+
+<script>
+var audio = new Audio();
+var playlistData = [];
+var selectedIndex = -1;
+var currentIndex = -1;
+var currentSpeed = 1.0;
+
+var playlist = document.getElementById("playlist");
+var progress = document.getElementById("progress");
+var timeDisplay = document.getElementById("timeDisplay");
+var playPauseBtn = document.getElementById("playPauseBtn");
+var hint = document.getElementById("hint");
+var dropOverlay = document.getElementById("dropOverlay");
+
+var hintMessages = [
+  "🚨🚨🚨 애애애애앵‼️‼️ 긴급상황‼️ 듣 치 대 회  임 박‼️🔊🔊🔊 이멀젼씨‼️ 모두주목해주세요 땡땡땡🛎🛎🛎 마이크테스트! 📣📣📣 ",
+  "예예~🙋🏻‍♂ 2분 미송출📺️ 거참🔥 죄송하게 됐습니다💤 사죄의 말씀 드립니다🌟🎉 ",
+  "🚨 협회 🚨 접근금지 🚨 차단하겟읍니다. ",
+  "아~~듣치만 하면 🤷🏻‍♀️ 정신이 들어왔다🙈 나갔다🙉 들어왔다🙈 나갔다🙉 아리까리 띠용띠용?!🤷 ",
+  "어떡해🙊 뱝뱝이😆 너무💐🌸🌷 귀여워🥰❤️ ",
+  "취직🏢하기 시러요😵 왜 해야하지요🤬 그냥 돈💵 주면 안돼요🤭 집🏡에서 일하면 안돼요❔🤪 ",
+  "🍀 X나들📣 오늘하루도📣 행복이📣 가득하길📣 바래용🍀 ",
+  "속사모~!👤 속기홀릭~!~!👥 말하기👄💬 전에 생각🤔💭 했나요👀~~❓ "
+];
+
+audio.oncanplay = function() { audio.playbackRate = currentSpeed; };
+
+document.addEventListener("DOMContentLoaded", function () {
+  if (!hint) return;
+  var baseText = hintMessages[Math.floor(Math.random() * hintMessages.length)];
+  var longText = "";
+  while (longText.length < 5000) { longText += baseText; }
+  hint.textContent = longText;
+  while (hint.scrollHeight < playlist.clientHeight) { hint.textContent += baseText; }
+});
+
+document.addEventListener('contextmenu', e => e.preventDefault(), false);
+document.addEventListener('dragstart', e => e.preventDefault(), false);
+document.addEventListener('selectstart', e => { if (e.target.id !== "previewContent") e.preventDefault(); }, false);
+
+playlist.ondragover = e => e.preventDefault();
+playlist.ondrop = e => { e.preventDefault(); e.stopPropagation(); dragCounter = 0; dropOverlay.classList.remove("active"); handleFiles(e.dataTransfer.files); };
+
+var dragCounter = 0;
+document.addEventListener("dragenter", e => { e.preventDefault(); e.stopPropagation(); dragCounter++; dropOverlay.classList.add("active"); });
+document.addEventListener("dragover", e => e.preventDefault());
+document.addEventListener("dragleave", () => { dragCounter--; if (dragCounter <= 0) { dragCounter = 0; dropOverlay.classList.remove("active"); } });
+document.addEventListener("drop", e => { e.preventDefault(); dragCounter = 0; dropOverlay.classList.remove("active"); handleFiles(e.dataTransfer.files); });
+
+function handleFiles(fileList) {
+  const files = Array.from(fileList);
+  const mp3Files = files.filter(f => f.name.toLowerCase().endsWith('.mp3'));
+  const docFiles = files.filter(f => ['txt', 'hwp', 'hwpx'].includes(f.name.toLowerCase().split('.').pop()));
+
+  mp3Files.forEach(file => {
+    const baseName = file.name.split('.').slice(0, -1).join('.');
+    if (!playlistData.find(item => item.audio && item.audio.name.split('.').slice(0, -1).join('.') === baseName)) {
+      playlistData.push({ audio: file, txt: null, hwp: null });
+      addItem(file.name, playlistData.length - 1);
+    }
+  });
+
+  docFiles.forEach(file => {
+    const ext = file.name.toLowerCase().split('.').pop();
+    const baseName = file.name.split('.').slice(0, -1).join('.');
+    const targetIndex = playlistData.findIndex(item => item.audio && item.audio.name.split('.').slice(0, -1).join('.') === baseName);
+    if (targetIndex !== -1) {
+      if (ext === 'txt') playlistData[targetIndex].txt = file;
+      else playlistData[targetIndex].hwp = file;
+      updateItemBtn(targetIndex);
+    }
+  });
+
+  if (playlistData.length > 0 && hint) { hint.remove(); hint = null; }
+}
+
+function updateItemBtn(index) {
+  const items = playlist.getElementsByClassName("playlist-item");
+  if (items[index]) {
+    const btn = items[index].querySelector(".ans-btn");
+    if (playlistData[index].txt || playlistData[index].hwp) btn.disabled = false;
+  }
+}
+
+function addItem(name, index) {
+  var item = document.createElement("div");
+  item.className = "playlist-item";
+
+  var nameSpan = document.createElement("span");
+  nameSpan.textContent = name;
+  item.appendChild(nameSpan);
+
+  var btn = document.createElement("button");
+  btn.className = "ans-btn";
+  btn.textContent = "답안확인";
+  btn.disabled = true;
+
+  btn.onclick = function(e) {
+    e.stopPropagation();
+    const data = playlistData[index];
+    if (data.txt) {
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        document.getElementById('previewContent').value = event.target.result;
+        document.getElementById('textPreview').style.display = 'flex';
+      };
+      reader.readAsText(data.txt, "UTF-8");
+    } else if (data.hwp) {
+      const a = document.createElement("a");
+      const fileURL = URL.createObjectURL(data.hwp);
+      a.href = fileURL;
+      a.download = data.audio.name.split('.').slice(0, -1).join('.') + '.' + data.hwp.name.split('.').pop();
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(fileURL); }, 100);
+    }
+  };
+
+  item.appendChild(btn);
+  item.onclick = function () { select(index); };
+  item.ondblclick = function () { playFromStart(index); };
+  playlist.appendChild(item);
+}
+
+function select(index) {
+  selectedIndex = index;
+  var items = playlist.getElementsByClassName("playlist-item");
+  for (var i = 0; i < items.length; i++) {
+    items[i].classList.toggle("selected", i === index);
+  }
+}
+
+function togglePlay() {
+  if (selectedIndex < 0) return;
+  if (selectedIndex !== currentIndex) {
+    audio.pause();
+    audio.src = URL.createObjectURL(playlistData[selectedIndex].audio);
+    currentIndex = selectedIndex;
+    audio.playbackRate = currentSpeed;
+    audio.play();
+    progress.disabled = false;
+    playPauseBtn.textContent = "⏸ 일시정지";
+    return;
+  }
+  if (audio.paused) {
+    audio.playbackRate = currentSpeed;
+    audio.play();
+    progress.disabled = false;
+    playPauseBtn.textContent = "⏸ 일시정지";
+  } else {
+    audio.pause();
+    playPauseBtn.textContent = "▶ 재생";
+  }
+}
+
+function setSpeed(rate, btn) {
+  currentSpeed = rate;
+  audio.playbackRate = rate;
+  document.querySelectorAll(".speed-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+}
+
+function setVolume(val) {
+  audio.volume = val;
+  const icon = document.querySelector(".volume-icon");
+  icon.textContent = val == 0 ? "🔇" : val < 0.5 ? "🔉" : "🔊";
+}
+
+audio.ontimeupdate = function () {
+  if (!audio.duration) return;
+  progress.value = (audio.currentTime / audio.duration) * 100;
+  timeDisplay.textContent = formatTime(audio.currentTime) + " / " + formatTime(audio.duration);
+};
+
+progress.oninput = function () {
+  if (progress.disabled || !audio.duration) return;
+  audio.currentTime = (progress.value / 100) * audio.duration;
+};
+
+audio.onended = function () {
+  playPauseBtn.textContent = "▶ 재생";
+  progress.value = 0;
+};
+
+function formatTime(sec) {
+  var m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+  return (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
+}
+
+function playFromStart(index) {
+  selectedIndex = index; currentIndex = index;
+  audio.pause();
+  if (audio.src) URL.revokeObjectURL(audio.src);
+  audio.src = URL.createObjectURL(playlistData[index].audio);
+  audio.currentTime = 0;
+  audio.playbackRate = currentSpeed;
+  audio.play();
+  progress.disabled = false;
+  playPauseBtn.textContent = "⏸ 일시정지";
+  select(index);
+}
+
+// ── 답안 전체복사 ──
+function copyAnswer() {
+  var content = document.getElementById('previewContent').value;
+  if (!content) return;
+  var btn = document.getElementById('copyAnswerBtn');
+  navigator.clipboard.writeText(content).then(function() {
+    btn.textContent = '✅ 복사완료!';
+    btn.classList.add('copied');
+    setTimeout(function() {
+      btn.textContent = '📋 전체복사';
+      btn.classList.remove('copied');
+    }, 1800);
+  }).catch(function() {
+    // fallback
+    var ta = document.getElementById('previewContent');
+    ta.select();
+    document.execCommand('copy');
+    btn.textContent = '✅ 복사완료!';
+    btn.classList.add('copied');
+    setTimeout(function() {
+      btn.textContent = '📋 전체복사';
+      btn.classList.remove('copied');
+    }, 1800);
+  });
+}
+
+// ── 테마 전환 ──
+var _themes = {
+  pink: {
+    '--pink-50':'#fff5f7','--pink-100':'#fde8ed','--pink-200':'#f8c8d0',
+    '--pink-300':'#f0a0b0','--pink-400':'#e8909a','--pink-500':'#d87080','--pink-600':'#b85060',
+    '--rose-50':'#fff8f9','--text':'#3a1020','--sub':'#c07888','--border':'#f8d8de',
+    '--overlay-bg':'rgba(220,100,120,0.10)',
+    '--overlay-text-bg':'rgba(220,100,120,0.42)',
+    '--popup-shadow-color':'rgba(216,112,128,0.30)',
+    body:'linear-gradient(135deg,#fff5f7 0%,#fdeaf0 50%,#fcdde6 100%)'
+  },
+  purple: {
+    '--pink-50':'#f5f2fb','--pink-100':'#e8e0f8','--pink-200':'#d4c8f0',
+    '--pink-300':'#b8a8e0','--pink-400':'#9b8ec4','--pink-500':'#8878b8','--pink-600':'#6858a0',
+    '--rose-50':'#f7f5fc','--text':'#26183a','--sub':'#8878a8','--border':'#ddd8f0',
+    '--overlay-bg':'rgba(140,110,200,0.10)',
+    '--overlay-text-bg':'rgba(140,110,200,0.42)',
+    '--popup-shadow-color':'rgba(136,120,184,0.30)',
+    body:'linear-gradient(135deg,#f5f2fb 0%,#ece5f8 50%,#e0d8f4 100%)'
+  },
+  orange: {
+    '--pink-50':'#fff8f0','--pink-100':'#ffeedd','--pink-200':'#ffd8b0',
+    '--pink-300':'#ffbb80','--pink-400':'#ffa060','--pink-500':'#f07828','--pink-600':'#d05818',
+    '--rose-50':'#fffaf5','--text':'#3a1800','--sub':'#c08050','--border':'#fde0c0',
+    '--overlay-bg':'rgba(240,140,50,0.10)',
+    '--overlay-text-bg':'rgba(240,140,50,0.42)',
+    '--popup-shadow-color':'rgba(240,120,40,0.30)',
+    body:'linear-gradient(135deg,#fff8f0 0%,#fff0e0 50%,#ffe4cc 100%)'
+  },
+  mint: {
+    '--pink-50':'#f0fbf8','--pink-100':'#d8f5ef','--pink-200':'#b0e8dc',
+    '--pink-300':'#80d8c8','--pink-400':'#6dcfb8','--pink-500':'#50b8a0','--pink-600':'#389888',
+    '--rose-50':'#f4fcfa','--text':'#0e2e28','--sub':'#60a898','--border':'#c0e8e0',
+    '--overlay-bg':'rgba(80,184,160,0.10)',
+    '--overlay-text-bg':'rgba(80,184,160,0.42)',
+    '--popup-shadow-color':'rgba(80,184,160,0.30)',
+    body:'linear-gradient(135deg,#f0fbf8 0%,#e0f8f2 50%,#ccf0e8 100%)'
+  },
+  skyblue: {
+    '--pink-50':'#f0f9fe','--pink-100':'#d8f0fc','--pink-200':'#a8e0f8',
+    '--pink-300':'#70ccf0','--pink-400':'#4dc8e8','--pink-500':'#2898c8','--pink-600':'#1878a8',
+    '--rose-50':'#f2faff','--text':'#0a2030','--sub':'#4898b8','--border':'#b8e4f8',
+    '--overlay-bg':'rgba(40,152,200,0.10)',
+    '--overlay-text-bg':'rgba(40,152,200,0.42)',
+    '--popup-shadow-color':'rgba(40,152,200,0.30)',
+    body:'linear-gradient(135deg,#f0f9fe 0%,#ddf0fc 50%,#c8e8fa 100%)'
+  },
+  gray: {
+    '--pink-50':'#f5f5f5','--pink-100':'#ebebeb','--pink-200':'#d8d8d8',
+    '--pink-300':'#bbb','--pink-400':'#9a9a9a','--pink-500':'#777','--pink-600':'#555',
+    '--rose-50':'#f7f7f7','--text':'#222','--sub':'#888','--border':'#ddd',
+    '--overlay-bg':'rgba(100,100,100,0.10)',
+    '--overlay-text-bg':'rgba(100,100,100,0.42)',
+    '--popup-shadow-color':'rgba(100,100,100,0.28)',
+    body:'linear-gradient(135deg,#f5f5f5 0%,#eeeeee 50%,#e5e5e5 100%)'
+  }
+};
+
+function setTheme(name, btn) {
+  var t = _themes[name];
+  var r = document.documentElement;
+  Object.keys(t).forEach(function(k) {
+    if (k !== 'body') r.style.setProperty(k, t[k]);
+  });
+  document.body.style.background = t.body;
+  document.querySelectorAll('.theme-btn').forEach(function(b){ b.classList.remove('on'); });
+  if (btn) btn.classList.add('on');
+  localStorage.setItem('selectedTheme', name);
+}
+
+// 페이지 로드 시 저장된 테마 복원
+(function() {
+  var saved = localStorage.getItem('selectedTheme') || 'pink';
+  var btn = document.querySelector('.theme-btn.t-' + saved);
+  setTheme(saved, btn);
+})();
+</script>
+</body>
+</html>
