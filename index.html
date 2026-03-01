@@ -1,0 +1,1512 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>X나똑소리</title>
+<style>
+  :root {
+    --bg:#f4f6f9; --panel:#fff; --border:#dde2ea;
+    --accent:#2c5fd4; --accent2:#1a3fa0;
+    --text:#1e2533; --sub:#6b7690;
+    --red:#e03030; --green:#1a9a40; --blue:#1a5fd4;
+    --shadow:0 2px 12px rgba(0,0,0,0.08);
+
+    /* 오자분석 — 보라 (라이트) */
+    --violet:#7c56d8;
+    --violet2:#6040b8;
+    --violet-bg:#f8f5ff;
+    --violet-border:#ddd0f8;
+    --violet-soft:#ede6ff;
+
+    /* 탈자모음 — 라이트 레드 */
+    --rose:#e05555;
+    --rose2:#c84040;
+    --rose-bg:#fff8f8;
+    --rose-border:#f8d8d8;
+    --rose-soft:#fdeaea;
+
+    /* 약어빈도수 — 초록 (라이트) */
+    --emerald:#3aaa78;
+    --emerald2:#2a8a60;
+    --emerald-bg:#f4fbf7;
+    --emerald-border:#c0e8d0;
+    --emerald-soft:#e4f8ee;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{user-select:none;-webkit-user-select:none;}
+  textarea, input[type="text"]{user-select:text;-webkit-user-select:text;}
+  body{background:var(--bg);color:var(--text);font-family:'Malgun Gothic','맑은 고딕',sans-serif;font-size:14px;padding:20px;}
+  h1{font-size:26px;font-weight:800;color:var(--accent);margin-bottom:16px;display:flex;align-items:center;gap:15px;}
+  h1::before{content:'';display:inline-block;width:6px;height:28px;background:var(--accent);border-radius:3px;}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:14px;box-shadow:var(--shadow);}
+  .card label{display:block;font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.8px;margin-bottom:7px;}
+  textarea{width:100%;height:120px;border:1.5px solid var(--border);border-radius:7px;padding:9px 11px;font-family:'Malgun Gothic','맑은 고딕',sans-serif;font-size:14px;line-height:1.8;color:var(--text);resize:vertical;outline:none;transition:border-color .2s;background:#fafbfd;}
+  textarea:focus{border-color:var(--accent);background:#fff;}
+  #gradeBtn{width:100%;padding:17px 13px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;font-family:'Malgun Gothic','맑은 고딕',sans-serif;cursor:pointer;letter-spacing:1px;transition:background .2s;margin-bottom:14px;}
+  #gradeBtn:hover{background:var(--accent2);}
+
+  /* 통계 */
+  .stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+  .stat-item{flex:1;min-width:90px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;text-align:center;box-shadow:var(--shadow);}
+  .stat-item .lbl{font-size:11px;color:var(--sub);font-weight:600;margin-bottom:3px;}
+  .stat-item .val{font-size:21px;font-weight:800;color:var(--text);}
+  .stat-item.miss .val{color:var(--red);}
+  .stat-item.add  .val{color:var(--green);}
+  .stat-item.wrong .val{color:var(--blue);}
+  .stat-item.acc  .val{color:var(--accent);}
+
+  /* 탭 */
+  .tabs{display:flex;gap:4px;margin-bottom:0;border-bottom:2px solid var(--border);align-items:flex-end;}
+  .tab-lock-wrap{
+    margin-left:auto; padding-bottom:6px;
+    display:flex; align-items:center; gap:5px;
+    font-size:11px; font-weight:600; color:var(--sub);
+    white-space:nowrap; cursor:pointer; user-select:none;
+  }
+  .tab-lock-wrap input[type=checkbox]{ cursor:pointer; accent-color:var(--accent); width:13px; height:13px; }
+  .tab-btn{padding:8px 18px;border:none;background:none;font-family:'Malgun Gothic','맑은 고딕',sans-serif;font-size:13px;font-weight:600;color:var(--sub);cursor:pointer;border-radius:6px 6px 0 0;transition:all .15s;border:1.5px solid transparent;border-bottom:none;margin-bottom:-2px;position:relative;z-index:1;}
+  .tab-btn.active{background:var(--panel);color:var(--accent);border-color:var(--border);border-bottom:2px solid var(--panel);}
+  .tab-btn.active[data-tab="analysis"]{color:var(--violet);border-color:var(--violet-border);border-bottom:2px solid var(--panel);}
+  .tab-btn.active[data-tab="misslist"]{color:var(--rose);border-color:var(--rose-border);border-bottom:2px solid var(--panel);}
+  .tab-btn.active[data-tab="freq"]{color:var(--emerald);border-color:var(--emerald-border);border-bottom:2px solid var(--panel);}
+  .tab-btn:hover:not(.active){background:#eef1f7;color:var(--text);}
+  .tab-panel{background:var(--panel);border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;padding:16px 18px;box-shadow:var(--shadow);min-height:440px;display:flex;flex-direction:column;}
+  #tab-result.tab-panel{border-top:none;}
+  #tab-analysis.tab-panel{border-top:none;}
+  #tab-misslist.tab-panel{border-top:none;}
+  #tab-freq.tab-panel{border-top:none;}
+
+  /* 결과 박스 */
+  #resultBox{font-size:15px;line-height:2.8;word-break:break-all;white-space:pre-wrap;min-height:80px;flex:1;overflow-y:auto;}
+  #resultBox .miss {color:var(--red);  font-weight:700;}
+  #resultBox .add  {color:var(--green);font-weight:700;}
+  #resultBox .wrong{color:var(--blue); font-weight:700;}
+  .empty-msg{color:var(--sub);font-size:13px;text-align:center;padding:24px 0;}
+  .note{
+    flex-shrink:0;
+    font-size:11px; color:var(--sub);
+    padding:20px 18px;
+    border-top:1px solid var(--border);
+    background:#fafbfd;
+    /* 탭 패딩(16px 18px)을 상쇄해 전폭으로 뻗기 */
+    margin: 0 -18px -16px;
+  }
+
+  /* ── 오자 분석 ── */
+  .analysis-section{margin-bottom:18px;}
+  .analysis-section h3{font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--border);}
+  .jaso-grid{display:flex;flex-wrap:wrap;gap:6px;}
+
+  /* ── 공용 N회 원형 뱃지 ── */
+  .cnt-circle{
+    display:inline-flex;align-items:center;justify-content:center;
+    min-width:32px;height:19px;border-radius:999px;
+    padding:0 7px;font-size:10px;font-weight:800;
+    margin-left:4px;flex-shrink:0;white-space:nowrap;line-height:1;
+    letter-spacing:0.02em;font-stretch:normal;word-spacing:0;
+  }
+
+  /* ── 자모 오자 분석 ── */
+  /* 하위 — 극연회 */
+  .jaso-item{background:#fafafa;border:1px solid #ebebef;border-radius:6px;padding:5px 11px;font-size:13px;display:flex;align-items:center;gap:6px;}
+  .jaso-item .pair{font-weight:600;color:#c0c0cc;}
+  .jaso-item .arrow{color:#d8d8e0;font-size:11px;}
+  .jaso-item .cnt-circle{background:#eeeef2;color:#a8a8b8;}
+
+  /* 중위 — 극연블루 */
+  .jaso-item.mid{background:#f5f8ff;border-color:#d8e6f8;}
+  .jaso-item.mid .pair{color:#6890c0;}
+  .jaso-item.mid .arrow{color:#b8d0ec;}
+  .jaso-item.mid .cnt-circle{background:#ddeaf8;color:#3a68a8;}
+
+  /* 상위 — 극연레드 */
+  .jaso-item.high{background:#fff6f6;border-color:#f5d8d8;}
+  .jaso-item.high .pair{color:#c86060;}
+  .jaso-item.high .arrow{color:#eab8b8;}
+  .jaso-item.high .cnt-circle{background:#fae0e0;color:#b03838;}
+
+  .jaso-label{font-size:11px;font-weight:700;color:var(--sub);margin:14px 0 7px;display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:.6px;}
+  .jaso-label::before{content:'';display:inline-block;width:2px;height:12px;background:var(--border);border-radius:2px;}
+
+  /* ── 약어 혼동 — 극연보라 ── */
+  .skip-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+  .skip-item{
+    display:inline-flex;align-items:center;
+    background:#faf9ff;border:1px solid #e8e4f5;
+    border-radius:6px;padding:4px 10px;
+    font-size:12px;color:#9070c0;font-weight:600;
+  }
+  .skip-item .cnt-circle{background:#ede8f8;color:#6040a8;}
+  .abbrev-level-group{display:flex;gap:6px;flex-wrap:wrap;}
+  .abbrev-level-btn{padding:5px 14px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;background:#f5f5f5;color:var(--sub);transition:all .15s;}
+  .abbrev-level-btn.active{background:var(--violet);color:#fff;border-color:var(--violet);}
+  .abbrev-level-btn:hover:not(.active){background:var(--violet-soft);color:var(--violet);}
+
+  /* 탈자 모음 탭 */
+  .miss-options label{font-size:12px;font-weight:700;color:var(--rose);white-space:nowrap;}
+  .miss-options select{border:1.5px solid var(--rose-border);border-radius:5px;padding:4px 10px;font-size:13px;font-family:'Malgun Gothic','맑은 고딕',sans-serif;color:var(--text);background:#fff;cursor:pointer;outline:none;}
+  .miss-options select:focus{border-color:var(--rose);}
+  .miss-options .opt-desc{font-size:11px;color:var(--sub);}
+  .miss-copy-btn{
+    margin-left:auto; padding:5px 14px; background:#fff; color:var(--rose);
+    border:1.5px solid var(--rose-border); border-radius:6px;
+    font-size:12px; font-weight:700; font-family:inherit; cursor:pointer;
+    transition:all .15s; white-space:nowrap; flex-shrink:0;
+  }
+  .miss-copy-btn:hover{ background:var(--rose); color:#fff; border-color:var(--rose); }
+
+  .miss-list{display:flex;flex-direction:column;gap:8px;}
+  .miss-entry{display:flex;align-items:baseline;gap:6px;background:#f9f9f9;border:1px solid #eee;border-radius:7px;padding:8px 12px;font-size:14px;line-height:1.8;flex-wrap:wrap;}
+  .miss-options{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 14px;background:var(--rose-soft);border:1px solid var(--rose-border);border-radius:8px;flex-wrap:wrap;}
+  .miss-entry .prev-context{color:#aaa;font-size:13px;}
+  .miss-entry .miss-char{color:var(--red);font-weight:700;font-size:15px;}
+  .miss-entry .miss-tail{color:#aaa;font-size:14px;}
+  .miss-entry .miss-sep{display:inline;}
+  .miss-entry .miss-index{font-size:10px;color:#bbb;margin-left:6px;align-self:center;}
+  .miss-section-title{font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border);}
+
+  /* ══════════════════════════════════════════
+     가로형 레이아웃 (1000px 이상)
+     ══════════════════════════════════════════ */
+  @media(min-width:1000px){
+
+    /* body: 뷰포트 높이를 flex column으로 꽉 채움 */
+    body{
+      height:100vh;
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+      padding:28px 36px 24px;
+      gap:0;
+    }
+
+    h1{margin-bottom:18px;flex-shrink:0;}
+
+    /* 2단 컨테이너: 남은 높이 전부 */
+    .layout{
+      flex:1;min-height:0;
+      display:flex;
+      gap:22px;
+      align-items:stretch;
+    }
+
+    /* ── 좌측 ── */
+    .col-left{
+      width:50%;flex-shrink:0;
+      display:flex;flex-direction:column;
+      gap:12px;
+    }
+    .col-left .card{display:flex;flex-direction:column;margin-bottom:0;}
+    /* 두 textarea 카드가 균등하게 세로 공간 분배 */
+    .col-left .card.grow{flex:1;min-height:0;}
+    .col-left .card.grow textarea{
+      flex:1;height:auto;resize:none;min-height:60px;
+    }
+    /* 버튼 위아래 여백 균형 */
+    .col-left #gradeBtn{
+      flex-shrink:0;
+      margin-top:0;margin-bottom:0;
+    }
+    .col-left .stats{flex-shrink:0;margin-bottom:0;}
+
+    /* ── 우측: 카드처럼 감싸서 좌측 카드 상단과 라인 맞춤 ── */
+    .col-right{
+      flex:1;min-width:0;
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:10px;
+      box-shadow:var(--shadow);
+      display:flex;flex-direction:column;
+      overflow:hidden;
+    }
+
+    /* 탭 버튼: col-right 내부 패딩 맞춤, 기존 탭 스타일 유지 */
+    .col-right .tabs{
+      flex-shrink:0;
+      padding:14px 18px 0;
+      margin-bottom:0;
+      border-bottom:2px solid var(--border);
+      /* 활성 탭에 따라 JS로 border-bottom-color 변경 */
+    }
+
+    /* tab-panel: 우측 컬럼 나머지 높이 채움, 테두리·그림자 제거 */
+    .col-right .tab-panel{
+      flex:1;min-height:0;
+      overflow-y:auto;
+      border:none;
+      border-radius:0;
+      box-shadow:none;
+      padding:16px 18px;
+    }
+    /* col-right 내 per-tab 상단 라인 — 모두 제거, .tabs border-bottom으로 통일 */
+    .col-right #tab-result,
+    .col-right #tab-analysis,
+    .col-right #tab-misslist,
+    .col-right #tab-freq{ border-top:none; }
+
+    /* resultBox가 늘어나서 .note를 자연스럽게 아래로 밀기 */
+    .col-right #tab-result #resultBox{flex:1;overflow-y:auto;}
+
+    /* 가로형: freq 탭 패널 - 내부 flex 유지(overflow-y:auto 해제) */
+    .col-right #tab-freq{ overflow-y:auto; }
+
+    /* 가로형: 빈도수체크 버튼을 채점하기 버튼과 수평 맞춤
+       col-left: [card][card][gradeBtn][stats(≈72px)]
+       freq-left: [label][textarea:flex1][run-btn] + footer(≈40px)
+       → freq-left padding-bottom = stats+gap - footer ≈ 32px */
+    .col-right #tab-freq .freq-left{ padding-bottom:20px; }
+  }
+
+  /* ── 약어 빈도수 체크 탭 ── */
+  #tab-freq{ flex-direction:column; gap:0; padding:16px 18px; min-height:440px; }
+  #tab-freq .freq-left textarea{ flex:1; min-height:0; }
+
+  /* 상단 본문: 좌(입력) + 우(결과) 가로 배치 */
+  .freq-body{
+    flex:1; min-height:0; display:flex; flex-direction:row; gap:12px;
+    margin-bottom:8px;
+  }
+
+  /* ─ 좌측 입력 패널 ─ */
+  .freq-left{
+    flex:0 0 40%; display:flex; flex-direction:column;
+    padding:18px 20px 20px 18px; gap:14px;
+    margin-bottom:8px;
+    background:var(--emerald-bg);
+    border-radius:8px;
+  }
+  .freq-left-label{
+    font-size:11px; font-weight:700; color:var(--emerald);
+    text-transform:uppercase; letter-spacing:.8px;
+  }
+  .freq-left textarea{
+    flex:1; min-height:0; resize:none;
+    border:1.5px solid var(--emerald-border); border-radius:7px;
+    padding:10px 12px; font-size:13px; line-height:2;
+    font-family:'Malgun Gothic','맑은 고딕',sans-serif;
+    color:var(--text); background:#fff; outline:none; transition:border-color .2s;
+  }
+  .freq-left textarea:focus{ border-color:var(--emerald); }
+  .freq-left textarea::placeholder{ color:#c8cfda; }
+  .freq-run-btn{
+    flex-shrink:0; padding:13px; background:var(--emerald); color:#fff;
+    border:none; border-radius:8px; font-size:14px; font-weight:700;
+    font-family:inherit; cursor:pointer; transition:background .2s; letter-spacing:.5px;
+  }
+  .freq-run-btn:hover{ background:var(--emerald2); }
+  .freq-run-btn:disabled{ background:#b8d8c8; color:#fff; cursor:not-allowed; }
+
+  /* ─ 우측 결과 패널 ─ */
+  .freq-right{
+    flex:1; min-width:0; display:flex; flex-direction:column;
+    padding:18px 18px 18px 10px; gap:0;
+  }
+  .freq-result-hdr{
+    flex-shrink:0; display:flex; align-items:baseline; gap:8px;
+    padding-bottom:10px; border-bottom:2px solid var(--border); margin-bottom:12px;
+  }
+  .freq-result-hdr .freq-hdr-title{
+    font-size:12px; font-weight:700; color:var(--sub);
+    text-transform:uppercase; letter-spacing:.6px;
+  }
+  .freq-result-hdr .freq-hdr-stat{
+    font-size:13px; font-weight:700; color:var(--emerald);
+  }
+  .freq-result-scroll{ flex:1; min-height:0; overflow-y:auto; }
+
+  /* 결과 아이템 */
+  .freq-list{ display:flex; flex-direction:column; gap:5px; }
+  .freq-item{
+    display:flex; align-items:center;
+    background:#f5f5f7; border:1px solid #e2e2e8; border-radius:7px;
+    padding:7px 14px; font-size:13px; gap:10px;
+  }
+  /* 8단계 무지개 색상 (연한 빨주노초파남보회) */
+  /* rank-1: 빨 */ .freq-item.rank-1{ background:#fff3f3; border-color:#f5c0c0; }
+  /* rank-2: 주 */ .freq-item.rank-2{ background:#fff7f0; border-color:#f8d8b0; }
+  /* rank-3: 노 */ .freq-item.rank-3{ background:#fffcf0; border-color:#f0e090; }
+  /* rank-4: 초 */ .freq-item.rank-4{ background:#f3fbf3; border-color:#b0e0b8; }
+  /* rank-5: 파 */ .freq-item.rank-5{ background:#f0f6ff; border-color:#a8ccf0; }
+  /* rank-6: 남 */ .freq-item.rank-6{ background:#f0f2ff; border-color:#9098e0; }
+  /* rank-7: 보 */ .freq-item.rank-7{ background:#f8f2ff; border-color:#c0a0e8; }
+  /* rank-8: 회 */ .freq-item.rank-8{ background:#f5f5f7; border-color:#e2e2e8; }
+
+  .freq-rank{
+    flex-shrink:0; width:22px; font-size:11px; font-weight:700;
+    color:#b0b0bc; text-align:right;
+  }
+  .freq-item.rank-1 .freq-rank{ color:#c04040; }
+  .freq-item.rank-2 .freq-rank{ color:#d07820; }
+  .freq-item.rank-3 .freq-rank{ color:#a09010; }
+  .freq-item.rank-4 .freq-rank{ color:#288040; }
+  .freq-item.rank-5 .freq-rank{ color:#2868b8; }
+  .freq-item.rank-6 .freq-rank{ color:#4050a8; }
+  .freq-item.rank-7 .freq-rank{ color:#7840b8; }
+  .freq-item.rank-8 .freq-rank{ color:#9090a8; }
+
+  .freq-word{ flex:1; font-weight:700; color:var(--text); font-size:14px; }
+  .freq-bar-wrap{ flex:0 0 80px; height:5px; background:#e2e2e8; border-radius:3px; overflow:hidden; }
+  .freq-bar{ height:100%; background:#b0b0bc; border-radius:3px; transition:width .3s; }
+  .freq-item.rank-1 .freq-bar-wrap{ background:#fcdede; } .freq-item.rank-1 .freq-bar{ background:#e06060; }
+  .freq-item.rank-2 .freq-bar-wrap{ background:#fce8cc; } .freq-item.rank-2 .freq-bar{ background:#e09030; }
+  .freq-item.rank-3 .freq-bar-wrap{ background:#faf0a8; } .freq-item.rank-3 .freq-bar{ background:#c8b818; }
+  .freq-item.rank-4 .freq-bar-wrap{ background:#c8ecd0; } .freq-item.rank-4 .freq-bar{ background:#38a858; }
+  .freq-item.rank-5 .freq-bar-wrap{ background:#c4dff8; } .freq-item.rank-5 .freq-bar{ background:#4890d8; }
+  .freq-item.rank-6 .freq-bar-wrap{ background:#c8ccf0; } .freq-item.rank-6 .freq-bar{ background:#5868c0; }
+  .freq-item.rank-7 .freq-bar-wrap{ background:#dcc8f4; } .freq-item.rank-7 .freq-bar{ background:#9058d0; }
+  .freq-item.rank-8 .freq-bar-wrap{ background:#e2e2e8; } .freq-item.rank-8 .freq-bar{ background:#b0b0bc; }
+
+  .freq-cnt{
+    flex-shrink:0; min-width:44px; text-align:right;
+    font-size:12px; font-weight:700; color:#b0b0bc;
+  }
+  .freq-item.rank-1 .freq-cnt{ color:#c04040; }
+  .freq-item.rank-2 .freq-cnt{ color:#d07820; }
+  .freq-item.rank-3 .freq-cnt{ color:#a09010; }
+  .freq-item.rank-4 .freq-cnt{ color:#288040; }
+  .freq-item.rank-5 .freq-cnt{ color:#2868b8; }
+  .freq-item.rank-6 .freq-cnt{ color:#4050a8; }
+  .freq-item.rank-7 .freq-cnt{ color:#7840b8; }
+  .freq-item.rank-8 .freq-cnt{ color:#9090a8; }
+
+  /* 0건 섹션 */
+  .freq-zero-section{ margin-top:14px; }
+  .freq-zero-hdr{
+    font-size:11px; font-weight:700; color:var(--sub); text-transform:uppercase;
+    letter-spacing:.6px; padding-bottom:6px; border-bottom:1px solid var(--border); margin-bottom:8px;
+  }
+  .freq-zero-list{ display:flex; flex-wrap:wrap; gap:5px; }
+  .freq-zero-item{
+    background:#f5f5f5; border:1px solid #ddd; border-radius:5px;
+    padding:3px 10px; font-size:12px; color:#aaa;
+  }
+
+  /* ─ 일괄복사 버튼 ─ */
+  .freq-copy-btn{
+    padding:5px 14px; background:#fff; color:var(--emerald);
+    border:1.5px solid var(--emerald-border); border-radius:6px;
+    font-size:12px; font-weight:700; font-family:inherit; cursor:pointer;
+    transition:all .15s; white-space:nowrap; margin-left:auto; flex-shrink:0;
+  }
+  .freq-copy-btn:hover{ background:var(--emerald); color:#fff; border-color:var(--emerald); }
+</style>
+</head>
+<body>
+<h1>X 나 똑 소 리 나 <span style="font-family:'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji','Noto Sans Symbols2',sans-serif;font-weight:400;">₍՞ • 🐽 • ՞₎ ˚₊·—̳͟͞͞♡</span></h1>
+
+<div class="layout">
+
+  <!-- ── 좌측: 입력 영역 (860px+ 에서만 .col-left 레이아웃 적용) ── -->
+  <div class="col-left">
+    <div class="card grow">
+      <label>원문 입력</label>
+      <textarea id="originalText" placeholder="원문을 입력하세요... "></textarea>
+    </div>
+    <div class="card grow">
+      <label>연습 문장 입력 (번문)</label>
+      <textarea id="inputText" placeholder="연습한 문장을 입력하세요..."></textarea>
+    </div>
+    <button id="gradeBtn" onclick="doGrade()">채점하기 (Ctrl + Enter)</button>
+    <div class="stats">
+      <div class="stat-item">      <div class="lbl">전체 글자 수</div><div class="val" id="statTotal">-</div></div>
+      <div class="stat-item miss"> <div class="lbl">탈자</div>         <div class="val" id="statMiss">-</div></div>
+      <div class="stat-item add">  <div class="lbl">첨자</div>         <div class="val" id="statAdd">-</div></div>
+      <div class="stat-item wrong"><div class="lbl">오자</div>         <div class="val" id="statWrong">-</div></div>
+      <div class="stat-item acc">  <div class="lbl">정확도</div>       <div class="val" id="statAcc">-</div></div>
+    </div>
+  </div>
+
+  <!-- ── 우측: 채점 결과 탭 ── -->
+  <div class="col-right">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="result" onclick="showTab('result',this)">채점 결과</button>
+      <button class="tab-btn" data-tab="analysis" onclick="showTab('analysis',this)">오자 분석</button>
+      <button class="tab-btn" data-tab="misslist" onclick="showTab('misslist',this)">탈자 모음</button>
+      <button class="tab-btn" data-tab="freq" onclick="showTab('freq',this)">약어 빈도수 체크</button>
+      <label class="tab-lock-wrap">
+        <input type="checkbox" id="tabLockChk" checked>
+        탭 고정
+      </label>
+    </div>
+
+    <div id="tab-result" class="tab-panel">
+      <div style="font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;display:flex;gap:16px;flex-wrap:wrap;">
+        <span style="color:var(--red);">■ 탈자</span>
+        <span style="color:var(--green);">■ 첨자</span>
+        <span style="color:var(--blue);">■ 오자 (잘못친글자(원문글자))</span>
+      </div>
+      <div id="resultBox" style="flex:1;min-height:0;overflow-y:auto;"><p class="empty-msg">채점 결과가 여기에 표시됩니다.</p></div>
+      <p class="note">※ 띄어쓰기 및 %, $, &amp; 이외의 문장부호 채점 제외</p>
+    </div>
+
+    <div id="tab-analysis" class="tab-panel" style="display:none;">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--violet-bg);border:1.5px solid var(--violet-border);border-radius:8px;margin-bottom:14px;flex-shrink:0;box-shadow:0 1px 4px rgba(90,60,180,0.08);flex-wrap:wrap;">
+        <span style="font-size:12px;font-weight:700;color:var(--violet);white-space:nowrap;margin-right:2px;">데이터 누적</span>
+        <label id="accumulateToggle" style="display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:5px 14px;border:1.5px solid var(--violet-border);border-radius:6px;font-size:12px;font-weight:700;font-family:inherit;background:var(--violet-bg);color:var(--violet);transition:all .15s;white-space:nowrap;">
+          <input type="checkbox" id="accumulateChk"
+            style="cursor:pointer;accent-color:var(--violet);width:13px;height:13px;"
+            onchange="onAccumulateChange(this)">
+          <span id="accumulateLabel">OFF</span>
+        </label>
+        <span id="accumulateStatus" style="font-size:11px;color:var(--violet);opacity:0.7;">채점할 때마다 오자 통계가 누적됩니다</span>
+        <button id="promptCopyBtn" onclick="copyJasoPrompt()"
+          style="margin-left:auto;padding:5px 13px;background:#fff;color:var(--violet);border:1.5px solid var(--violet-border);border-radius:6px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s;"
+          onmouseover="this.style.background='var(--violet)';this.style.color='#fff';"
+          onmouseout="this.style.background='#fff';this.style.color='var(--violet)';">
+          🤖 AI프롬프트 복사
+        </button>
+      </div>
+      <div id="analysisBox" style="flex:1;min-height:0;overflow-y:auto;"><p class="empty-msg">채점 후 오자 분석이 여기에 표시됩니다.</p></div>
+      <p class="note">※ 자주 틀리는 오자 패턴을 확인하고 AI 연습문 생성용 프롬프트를 복사</p>
+    </div>
+
+    <div id="tab-misslist" class="tab-panel" style="display:none;">
+      <div class="miss-options">
+        <label>이전 어절 포함:</label>
+        <select id="prevWordCount" onchange="renderMissList()">
+          <option value="0">없음 (탈자만)</option>
+          <option value="1">이전 1어절</option>
+          <option value="2">이전 2어절</option>
+          <option value="3" selected>이전 3어절</option>
+          <option value="4">이전 4어절</option>
+          <option value="5">이전 5어절</option>
+        </select>
+        <button id="missCopyBtn" class="miss-copy-btn" onclick="missCopyAll()">📋 일괄복사</button>
+      </div>
+      <div id="missListBox" style="flex:1;min-height:0;overflow-y:auto;"><p class="empty-msg">채점 후 탈자 목록이 여기에 표시됩니다.</p></div>
+      <p class="note">※ 탈자 앞 어절을 함께 표시하여 입력 흐름이 무너진 원인 파악</p>
+    </div>
+
+    <div id="tab-freq" class="tab-panel" style="display:none;">
+      <!-- 상단 컨트롤 바 -->
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--emerald-bg);border:1.5px solid var(--emerald-border);border-radius:8px;margin-bottom:14px;flex-shrink:0;box-shadow:0 1px 4px rgba(60,150,80,0.07);flex-wrap:wrap;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex-shrink:0;">
+          <input type="file" id="corpusFileInput" accept=".txt,.js" style="display:none;" onchange="loadCorpusFile(this)">
+          <button onclick="document.getElementById('corpusFileInput').click()"
+            style="padding:5px 13px;background:var(--emerald);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;">
+            📂 사설데이터 불러오기
+          </button>
+        </label>
+        <span id="corpusStatus" style="font-size:11px;font-weight:700;color:var(--emerald);">사설 데이터를 불러오면 빈도수 체크가 활성화됩니다.</span>
+        <button class="freq-copy-btn" onclick="freqCopyAll()"
+          style="margin-left:auto;">📋 일괄복사</button>
+      </div>
+      <!-- 본문: 좌입력 + 우결과 -->
+      <div class="freq-body">
+        <!-- 좌측: 약어 입력 -->
+        <div class="freq-left">
+          <span class="freq-left-label">약어 목록 (엔터로 구분)</span>
+          <textarea id="freqAbbrInput" placeholder="대한민국&#10;경제&#10;정부&#10;국회의원&#10;국무총리&#10;..."></textarea>
+          <button id="freqRunBtn" class="freq-run-btn" onclick="runFreqCheck()" disabled>📊 빈도수 체크</button>
+        </div>
+        <!-- 우측: 결과 -->
+        <div class="freq-right">
+          <div class="freq-result-hdr">
+            <span class="freq-hdr-title">결과</span>
+            <span class="freq-hdr-stat" id="freqHeader"></span>
+          </div>
+          <div class="freq-result-scroll">
+            <div id="freqResultBox"><p class="empty-msg">사설데이터를 불러온 뒤 왼쪽에 약어를 입력하고<br>[📊 빈도수 체크] 버튼을 눌러주세요.</p></div>
+          </div>
+        </div>
+      </div>
+      <!-- 하단 푸터 -->
+      <p class="note">※ 사설 데이터를 통해 빈도수 높은 약어를 파악</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+// 한글속기 채점 프로그램 — Levenshtein Distance 기반 채점 엔진
+// ============================================================
+
+// ── 전역 상태 ──
+let _lastMissData = null;
+let _missCopyText = '';
+
+function missCopyAll() {
+  const btn = document.getElementById('missCopyBtn');
+  if (!_missCopyText) {
+    btn.textContent = '결과 없음';
+    setTimeout(() => { btn.textContent = '📋 일괄복사'; }, 1500);
+    return;
+  }
+  const ok   = () => { btn.textContent = '✅ 복사됨!'; setTimeout(() => { btn.textContent = '📋 일괄복사'; }, 1500); };
+  const fail = () => { btn.textContent = '❌ 실패';   setTimeout(() => { btn.textContent = '📋 일괄복사'; }, 1500); };
+  const execCopy = () => {
+    const ta = Object.assign(document.createElement('textarea'), { value: _missCopyText });
+    ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    try { document.execCommand('copy') ? ok() : fail(); } catch { fail(); }
+    document.body.removeChild(ta);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(_missCopyText).then(ok).catch(execCopy);
+  } else { execCopy(); }
+}
+
+// ── 탭 전환 ──
+function showTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).style.display = '';
+  btn.classList.add('active');
+
+  // 탭별 색상 적용
+  const tabsEl = document.querySelector('.tabs');
+  const style = getComputedStyle(document.documentElement);
+  const colorMap = {
+    result:   style.getPropertyValue('--border').trim(),
+    analysis: style.getPropertyValue('--violet-border').trim(),
+    misslist: style.getPropertyValue('--rose-border').trim(),
+    freq:     style.getPropertyValue('--emerald-border').trim(),
+  };
+  if (tabsEl) tabsEl.style.borderBottomColor = colorMap[name] || colorMap.result;
+}
+
+// ============================================================
+// 1. 유효 문자 판별
+//    · 완성형 한글   AC00–D7A3
+//    · 한글 자모 낱자 3131–318E  (ㄱ~ㅎ, ㅏ~ㅣ → ㅋ ㅎ 단독 포함)
+//    · ASCII 영문 / 숫자 / 채점기호 %$&
+// ============================================================
+function isValid(c) {
+  const code = c.charCodeAt(0);
+  return (code >= 0xAC00 && code <= 0xD7A3)
+      || (code >= 0x3131 && code <= 0x318E)
+      || /[a-zA-Z0-9%$&~]/.test(c);  // ~ 추가: 에서 대치 지원
+}
+
+// ============================================================
+// 2-A. 번문 전처리: 멀티차 한글 대치 → ASCII/기호 단일 문자로 변환
+//
+//   긴 것부터 처리 (에이치 > 에이 등 prefix 충돌 방지)
+//   원문은 변환하지 않음 — 번문 입력에만 적용
+//
+//   대치 목록 (원문기호/영문 ← 번문한글):
+//     H  ← 에이치   W  ← 더블유   % ← 퍼센트 ... 
+//   
+//   (단일 음절 대치: 비=B 시=C 디=D 이=E 지=G 엘=L 엠=M
+//                    엔=N 오=O 피=P 큐=Q 알=R 티=T 유=U
+//    → tokEq에서 처리하므로 여기서는 생략)
+// ============================================================
+const _MULTI_SUBS = [
+  // 4글자 (먼저)
+  ['엠지세대','MZ세대'], ['센티미터','cm'], ['킬로그램','kg'],
+  ['킬로미터','km'],     ['밀리리터','mL'], ['밀리그램','mg'],
+  ['밀리미터','mm'],
+  // 3글자
+  ['에이치','H'], ['더블유','W'], ['퍼센트','%'], ['에이펙','APEC'],
+  // 2글자
+  ['달러','$'],  ['에서','~'],  ['브이','V'],
+  ['제이','J'],  ['케이','K'],  ['아이','I'],
+  ['제트','Z'],  ['에프','F'],  ['에스','S'],
+  ['엑스','X'],  ['와이','Y'],  ['에이','A'],
+  ['앤','&'],    ['유엔','UN'], ['이유','EU'], ['티비','TV'],
+  // 1글자
+  ['팝','POP'],
+];
+
+function preprocessInput(str) {
+  let s = str;
+  for (const [ko, ascii] of _MULTI_SUBS) {
+    // 전체 문자열에서 해당 패턴을 모두 치환
+    s = s.split(ko).join(ascii);
+  }
+  return s;
+}
+
+// ============================================================
+// 2. 토큰화
+//    · 유효 문자(한글 완성형·자모, 영문, 숫자, %$&) → 1글자씩
+//    · 공백·문장부호 등 → 완전 무시
+//    · 묶음 없음: O E C D / 3 4 % 각각 별개 토큰
+// ============================================================
+function tokenize(str) {
+  const tokens = [];
+  for (const c of str) {
+    if (isValid(c)) tokens.push(c);
+  }
+  return tokens;
+}
+
+// 1글자 토큰이므로 글자 수는 항상 1
+function charCount(tok) { return 1; }
+
+// ============================================================
+// 3. Levenshtein Distance + 역추적 (채점 핵심 알고리즘)
+//
+//   채점 규칙 반영:
+//     동일(match)     → equal
+//     대체(substitute) → 오자  (원문 글자수만큼 감점)
+//     삭제(delete)    → 탈자  (원문 글자수만큼 감점)
+//     삽입(insert)    → 첨자  (입력 글자수 ÷3 감점)
+//
+//   역추적 우선순위: equal > substitute(오자) > delete(탈자) > insert(첨자)
+//     → '전락'→'전닥' 처럼 같은 위치에 다른 글자는 반드시 오자로 분류
+// ============================================================
+// 토큰 동일 비교: 영어는 대소문자 무시
+// ── 단일자 대치 정규화 테이블 ──
+// 한글 단일 음절 ↔ 영문/기호 (1:1 대치 가능 쌍)
+// 정규화 함수로 양쪽을 같은 키로 변환한 뒤 비교
+const _SINGLE_NORM = {
+  // 영문 → 소문자 키  (기존 동작 유지)
+  'a':'a','b':'b','c':'c','d':'d','e':'e','f':'f','g':'g','h':'h','i':'i',
+  'j':'j','k':'k','l':'l','m':'m','n':'n','o':'o','p':'p','q':'q','r':'r',
+  's':'s','t':'t','u':'u','v':'v','w':'w','x':'x','y':'y','z':'z',
+  'A':'a','B':'b','C':'c','D':'d','E':'e','F':'f','G':'g','H':'h','I':'i',
+  'J':'j','K':'k','L':'l','M':'m','N':'n','O':'o','P':'p','Q':'q','R':'r',
+  'S':'s','T':'t','U':'u','V':'v','W':'w','X':'x','Y':'y','Z':'z',
+  // 한글 단일 음절 → 소문자 키  (1:1 대치)
+  '비':'b','시':'c','디':'d','이':'e','지':'g',
+  '엘':'l','엠':'m','엔':'n','오':'o','피':'p',
+  '큐':'q','알':'r','티':'t','유':'u',
+  // 기호 → 기호 키 (대소문자 없으므로 그대로)
+  '%':'%','$':'$','&':'&','~':'~',
+};
+
+function _normTok(c) {
+  return _SINGLE_NORM[c] !== undefined ? _SINGLE_NORM[c] : c;
+}
+
+function tokEq(a, b) {
+  if (a === b) return true;
+  return _normTok(a) === _normTok(b);
+}
+
+function levenshteinDiff(oToks, iToks) {
+  const M = oToks.length;
+  const N = iToks.length;
+
+  // dp[i][j] : oToks[0..i-1] vs iToks[0..j-1] 의 최소 편집 비용
+  const dp = Array.from({ length: M + 1 }, () => new Float64Array(N + 1));
+  for (let i = 0; i <= M; i++) dp[i][0] = i;
+  for (let j = 0; j <= N; j++) dp[0][j] = j;
+
+  for (let i = 1; i <= M; i++) {
+    for (let j = 1; j <= N; j++) {
+      if (tokEq(oToks[i - 1], iToks[j - 1])) {
+        dp[i][j] = dp[i - 1][j - 1];                     // 일치 (비용 0)
+      } else {
+        dp[i][j] = 1 + Math.min(
+          dp[i - 1][j - 1],   // 대체 (오자)
+          dp[i - 1][j],       // 삭제 (탈자)
+          dp[i][j - 1]        // 삽입 (첨자)
+        );
+      }
+    }
+  }
+
+  // ── 역추적 ──
+  // 우선순위: 1.일치 → 2.탈자(삭제) → 3.오자(대체) → 4.첨자(삽입)
+  //
+  //   삭제를 대체보다 먼저 확인하는 이유:
+  //     동일 편집비용 경로가 여러 개일 때 "앞 글자 오자 + 뒷 글자 탈자"가
+  //     "앞 글자 탈자 + 뒷 글자 오자"보다 속기 채점에 직관적으로 부합함
+  //     예) 광복의 → 황의: wrong(광→황) + miss(복) ← 이 우선순위에서 선택됨
+  //   비용이 같을 때만 우선순위가 작동하며, 명확한 케이스는 영향 없음
+  const ops = [];
+  let i = M, j = N;
+
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && tokEq(oToks[i - 1], iToks[j - 1])) {
+      // 1순위: 일치 (대소문자 달라도 원문 글자 그대로 표시)
+      ops.unshift({ type: 'equal', orig: oToks[i - 1], inp: iToks[j - 1] });
+      i--; j--;
+    } else if (i > 0 && dp[i][j] === dp[i - 1][j] + 1) {
+      // 2순위: 삭제 → 탈자 (비용 동일 시 대체보다 먼저 확인)
+      ops.unshift({ type: 'miss', orig: oToks[i - 1], inp: '' });
+      i--;
+    } else if (i > 0 && j > 0 && dp[i][j] === dp[i - 1][j - 1] + 1) {
+      // 3순위: 대체 → 오자
+      ops.unshift({ type: 'wrong', orig: oToks[i - 1], inp: iToks[j - 1] });
+      i--; j--;
+    } else {
+      // 4순위: 삽입 → 첨자
+      ops.unshift({ type: 'add', orig: '', inp: iToks[j - 1] });
+      j--;
+    }
+  }
+
+  return ops;
+}
+
+// ============================================================
+// 3-B. 어절 경계 인덱스 계산
+//      origRaw의 공백 기준으로 각 어절 첫 글자의 유효문자 인덱스를 반환
+//      (첫 어절 제외 — 경계는 "새 어절 시작" 위치)
+// ============================================================
+function getWordBoundaries(origRaw) {
+  const boundaries = new Set();
+  let charIdx = 0;
+  let newWord = true;
+  for (const c of origRaw) {
+    if (/\s/.test(c)) {
+      newWord = true;
+    } else if (isValid(c)) {
+      if (newWord && charIdx > 0) boundaries.add(charIdx);
+      newWord = false;
+      charIdx++;
+    }
+  }
+  return boundaries;  // 예: {5, 9, 14, ...}
+}
+
+// ============================================================
+// 3-C. diff에 어절 경계 마커(wordBreak) 삽입
+//      원문 글자 인덱스를 추적하여, 새 어절이 시작되는 위치에
+//      {type:'wordBreak'} 를 삽입 → 블록 병합이 어절 경계를 넘지 않음
+// ============================================================
+function insertWordBoundaries(diff, boundaries) {
+  const result = [];
+  let origIdx = 0;
+  for (const op of diff) {
+    // 이 op 의 원문 시작 위치가 어절 경계인가?
+    if (op.orig && op.orig.length > 0 && origIdx > 0 && boundaries.has(origIdx)) {
+      result.push({ type: 'wordBreak', orig: '', inp: '' });
+    }
+    result.push(op);
+    if (op.orig) origIdx += op.orig.length;
+  }
+  return result;
+}
+
+
+// ============================================================
+// 4. 오자 분석 — 초·중·종성 분리 비교 + 자모 유사도 기반 약어 혼동 분류
+// ============================================================
+const CHO  = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+const JUNG = ['ㅏ','ㅐ','ㅑ','ㅒ','ㅓ','ㅔ','ㅕ','ㅖ','ㅗ','ㅘ','ㅙ','ㅚ','ㅛ','ㅜ','ㅝ','ㅞ','ㅟ','ㅠ','ㅡ','ㅢ','ㅣ'];
+const JONG = ['','ㄱ','ㄲ','ㄳ','ㄴ','ㄵ','ㄶ','ㄷ','ㄹ','ㄺ','ㄻ','ㄼ','ㄽ','ㄾ','ㄿ','ㅀ','ㅁ','ㅂ','ㅄ','ㅅ','ㅆ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+function isHangul(c) { const n = c.charCodeAt(0); return n >= 0xAC00 && n <= 0xD7A3; }
+function splitHangul(c) {
+  if (!isHangul(c)) return null;
+  const code = c.charCodeAt(0) - 0xAC00;
+  const jong = code % 28, jung = ((code - jong) / 28) % 21, cho = Math.floor(code / 28 / 21);
+  return { cho: CHO[cho], jung: JUNG[jung], jong: JONG[jong] };
+}
+function biKey(a, b) { return [a, b].sort().join('↔'); }
+
+// 두 한글 글자의 자모 유사도 계산 (0.0 ~ 1.0)
+// · 초성·중성: 항상 비교 (분모 기본 2)
+// · 종성: 둘 중 하나라도 종성이 있을 때만 비교 (분모 3으로 확장)
+//   → 둘 다 종성 없으면 종성 비교 자체를 건너뜀 (33% 오계산 방지)
+function jasoSimilarity(c1, c2) {
+  const j1 = splitHangul(c1), j2 = splitHangul(c2);
+  if (!j1 || !j2) return 0;
+  let match = 0, denom = 2;
+  if (j1.cho  === j2.cho)  match++;
+  if (j1.jung === j2.jung) match++;
+  if (j1.jong || j2.jong) {   // 둘 중 하나라도 종성 있으면 종성도 비교
+    denom = 3;
+    if (j1.jong === j2.jong) match++;
+  }
+  return match / denom;
+}
+
+function analyzeWrong(wrongList, level) {
+  const threshold = level / 100;
+  const cho = {}, jung = {}, jong = {};
+  const abbrevMap  = {}; // "inp||orig" → { orig, inp, sim, cnt } — 중복 집계용
+
+  for (const { orig, inp } of wrongList) {
+    const oc = [...orig], ic = [...inp];
+
+    // 비한글 포함 → 유사도 0%로 약어 혼동에 흡수
+    if (!oc.every(isHangul) || !ic.every(isHangul)) {
+      const key = `${inp}||${orig}`;
+      if (abbrevMap[key]) { abbrevMap[key].cnt++; }
+      else { abbrevMap[key] = { orig, inp, sim: 0, cnt: 1 }; }
+      continue;
+    }
+
+    // 덩어리 자모 유사도
+    // ※ wrong 연속 병합 구조상 oc.length === ic.length 항상 보장
+    let sim;
+    if (oc.length > 0) {
+      let total = 0;
+      for (let k = 0; k < oc.length; k++) total += jasoSimilarity(oc[k], ic[k]);
+      sim = total / oc.length;
+    } else {
+      sim = 0;
+    }
+
+    // 임계값 미만 → 약어 혼동 (중복이면 횟수 누적)
+    if (sim < threshold) {
+      const key = `${inp}||${orig}`;
+      if (abbrevMap[key]) {
+        abbrevMap[key].cnt++;
+      } else {
+        abbrevMap[key] = { orig, inp, sim, cnt: 1 };
+      }
+      continue;
+    }
+
+    // 임계값 이상 → 자모 분석
+    for (let k = 0; k < oc.length; k++) {
+      const oJ = splitHangul(oc[k]), iJ = splitHangul(ic[k]);
+      if (!oJ || !iJ) continue;
+      if (oJ.cho  !== iJ.cho)  { const key = biKey(oJ.cho,  iJ.cho);  cho[key]  = (cho[key] ||0)+1; }
+      if (oJ.jung !== iJ.jung) { const key = biKey(oJ.jung, iJ.jung); jung[key] = (jung[key]||0)+1; }
+      // 종성 비교: 둘 중 하나라도 종성 있을 때만
+      if (oJ.jong || iJ.jong) {
+        if (oJ.jong !== iJ.jong) {
+          const key = biKey(oJ.jong||'(없음)', iJ.jong||'(없음)');
+          jong[key] = (jong[key]||0)+1;
+        }
+      }
+    }
+  }
+
+  // abbrevMap → 배열로 변환, 횟수 내림차순 정렬
+  const skipAbbrev = Object.values(abbrevMap).sort((a, b) => b.cnt - a.cnt);
+  // 자모 데이터 전역 저장 (프롬프트 복사용)
+  _lastJasoData = { cho, jung, jong };
+  return { cho, jung, jong, skipAbbrev };
+}
+
+// 현재 약어 혼동 단계: 50% 고정
+let _abbrevLevel = 50;
+// 마지막 자모 분석 결과 저장 (프롬프트 복사용)
+let _lastJasoData = { cho: {}, jung: {}, jong: {} };
+
+// ── 데이터 누적 모드 ──
+let _accumulatedCho     = {};
+let _accumulatedJung    = {};
+let _accumulatedJong    = {};
+let _accumulatedAbbrevMap = {}; // "inp||orig" → { orig, inp, sim, cnt }
+
+function resetAccumulatedData() {
+  _accumulatedCho      = {};
+  _accumulatedJung     = {};
+  _accumulatedJong     = {};
+  _accumulatedAbbrevMap= {};
+}
+
+function mergeIntoAccumulated({ cho, jung, jong, skipAbbrev }) {
+  for (const [k, v] of Object.entries(cho))  _accumulatedCho[k]  = (_accumulatedCho[k]  || 0) + v;
+  for (const [k, v] of Object.entries(jung)) _accumulatedJung[k] = (_accumulatedJung[k] || 0) + v;
+  for (const [k, v] of Object.entries(jong)) _accumulatedJong[k] = (_accumulatedJong[k] || 0) + v;
+  for (const { orig, inp, sim, cnt } of skipAbbrev) {
+    const key = `${inp}||${orig}`;
+    if (_accumulatedAbbrevMap[key]) { _accumulatedAbbrevMap[key].cnt += cnt; }
+    else { _accumulatedAbbrevMap[key] = { orig, inp, sim, cnt }; }
+  }
+}
+
+function getAccumulatedAnalysis() {
+  const skipAbbrev = Object.values(_accumulatedAbbrevMap).sort((a,b) => b.cnt - a.cnt);
+  // 누적 jaso도 프롬프트 복사에 반영
+  _lastJasoData = { cho: _accumulatedCho, jung: _accumulatedJung, jong: _accumulatedJong };
+  return { cho: _accumulatedCho, jung: _accumulatedJung, jong: _accumulatedJong, skipAbbrev };
+}
+
+function onAccumulateChange(chk) {
+  const statusEl = document.getElementById('accumulateStatus');
+  const toggle   = document.getElementById('accumulateToggle');
+  const labelEl  = document.getElementById('accumulateLabel');
+  if (chk.checked) {
+    // 토글 버튼 → 활성 스타일 (violet)
+    toggle.style.background   = 'var(--violet)';
+    toggle.style.color        = '#fff';
+    toggle.style.borderColor  = 'var(--violet)';
+    labelEl.textContent       = 'ON';
+    statusEl.textContent      = '누적 모드 ON — 채점할 때마다 오자 통계가 쌓입니다';
+    statusEl.style.color      = 'var(--violet)';
+    statusEl.style.opacity    = '1';
+    // 현재 마지막 채점 결과를 누적의 시작점으로 세팅
+    resetAccumulatedData();
+    _lastJasoData = { cho: {}, jung: {}, jong: {} };
+    if (_lastWrongItems.length) {
+      const freshAnalysis = analyzeWrong(_lastWrongItems, _abbrevLevel);
+      mergeIntoAccumulated(freshAnalysis);
+      document.getElementById('analysisBox').innerHTML = renderAnalysis(getAccumulatedAnalysis());
+    } else {
+      document.getElementById('analysisBox').innerHTML = '<p class="empty-msg">채점 후 오자 분석이 여기에 표시됩니다.</p>';
+    }
+  } else {
+    // 토글 버튼 → 비활성 스타일
+    toggle.style.background   = 'var(--violet-bg)';
+    toggle.style.color        = 'var(--violet)';
+    toggle.style.borderColor  = 'var(--violet-border)';
+    labelEl.textContent       = 'OFF';
+    statusEl.textContent      = '채점할 때마다 오자 통계가 누적됩니다';
+    statusEl.style.color      = 'var(--violet)';
+    statusEl.style.opacity    = '0.7';
+    // 누적 데이터 + _lastJasoData 초기화 + 분석 박스 비우기
+    resetAccumulatedData();
+    _lastJasoData = { cho: {}, jung: {}, jong: {} };
+    _lastWrongItems = [];
+    document.getElementById('analysisBox').innerHTML = '<p class="empty-msg">채점 후 오자 분석이 여기에 표시됩니다.</p>';
+    setGradeBtnEnabled(true);
+  }
+}
+
+function resetAccumulate() {
+  resetAccumulatedData();
+  document.getElementById('analysisBox').innerHTML =
+    _lastWrongItems.length
+      ? renderAnalysis(analyzeWrong(_lastWrongItems, _abbrevLevel))
+      : '<p class="empty-msg">누적 데이터가 초기화되었습니다.</p>';
+}
+
+function renderAnalysis({ cho, jung, jong, skipAbbrev }) {
+  const sorted = obj => Object.entries(obj).sort((a, b) => b[1] - a[1]);
+
+  // 초·중·종성 전체 값 중 최댓값으로 상대평가
+  const allVals = [...Object.values(cho), ...Object.values(jung), ...Object.values(jong)];
+  const maxVal = allVals.length ? Math.max(...allVals) : 1;
+  const relCls = n => {
+    const r = n / maxVal;
+    if (r >= 0.66) return 'high';
+    if (r >= 0.33) return 'mid';
+    return '';
+  };
+
+  const grid = (obj, label) => {
+    const es = sorted(obj);
+    if (!es.length) return '';
+    return `<div class="jaso-label">${label}</div><div class="jaso-grid">`
+      + es.map(([k, n]) => {
+          const [a, b] = k.split('↔');
+          const cls = relCls(n);
+          return `<div class="jaso-item ${cls}"><span class="pair">${a}</span><span class="arrow">↔</span><span class="pair">${b}</span><span class="cnt-circle">${n}회</span></div>`;
+        }).join('') + '</div>';
+  };
+
+  let html = '';
+
+  // ── 자모 오자 분석 ──
+  html += '<div class="analysis-section"><h3>자모 오자 분석 (초·중·종성 양방향 합산)</h3>';
+  const hasData = [cho, jung, jong].some(o => Object.keys(o).length > 0);
+  html += hasData
+    ? grid(cho, '초성 혼동') + grid(jung, '중성 혼동') + grid(jong, '종성 혼동')
+    : '<p style="color:var(--sub);font-size:13px;">분석 가능한 자모 오자가 없습니다.</p>';
+  html += '</div>';
+
+  // ── 약어 혼동 추정 ──
+  if (skipAbbrev.length) {
+    html += `<div class="analysis-section">
+      <h3>약어 혼동 추정 (자모 유사도 ${_abbrevLevel}% 미만)</h3>
+      <p style="font-size:11px;color:var(--sub);margin-bottom:8px;">글자 형태가 크게 달라 의도한 약어가 아닌 다른 약어를 입력한 것으로 추정됩니다. 예시: 잘못친글자(원문글자)</p>
+      <div class="skip-list">`;
+    skipAbbrev.forEach(({ orig, inp, sim, cnt }) => {
+      const cntBadge = cnt > 1 ? `<span class="cnt-circle">${cnt}회</span>` : '';
+      html += `<span class="skip-item">${inp}(${orig})${cntBadge}</span>`;
+    });
+    html += '</div></div>';
+  }
+
+  return html;
+}
+
+// ============================================================
+// 5. 탈자 모음 렌더링
+// ============================================================
+function cleanOrigWithSpace(str) {
+  return str.replace(/[\r\n\t\u3000]/g, ' ').replace(/ +/g, ' ').trim();
+}
+
+function renderMissList() {
+  if (!_lastMissData) return;
+  const { origWithSpace, missGroups } = _lastMissData;
+  const box = document.getElementById('missListBox');
+  if (!missGroups || missGroups.length === 0) {
+    box.innerHTML = '<p class="empty-msg">탈자가 없습니다.</p>'; return;
+  }
+
+  const prevN = parseInt(document.getElementById('prevWordCount').value, 10);
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  // origWithSpace 내 유효 문자 위치 매핑 (1글자 = 1슬롯)
+  const charPos = [];
+  for (let i = 0; i < origWithSpace.length; i++) {
+    if (isValid(origWithSpace[i])) charPos.push(i);
+  }
+
+  const totalMiss = missGroups.reduce((s, g) => s + g.charCount, 0);
+  let html = `<div class="miss-section-title">탈자 덩어리 — ${missGroups.length}건 / 총 ${totalMiss}자</div><div class="miss-list">`;
+  const copyTexts = [];
+
+  missGroups.forEach((grp, gi) => {
+    const sPos = charPos[grp.startIdx];
+    const ePos = charPos[grp.endIdx];
+
+    let wS = sPos; if (wS !== undefined) while (wS > 0 && origWithSpace[wS-1] !== ' ') wS--;
+    let wE = ePos; if (wE !== undefined) while (wE+1 < origWithSpace.length && origWithSpace[wE+1] !== ' ') wE++;
+
+    let ctxHtml = '';
+    if (prevN > 0 && wS !== undefined) {
+      const bef = origWithSpace.slice(0, wS).trimEnd().split(' ').filter(Boolean);
+      const taken = bef.slice(-prevN).join(' ');
+      if (taken) ctxHtml = `<span class="prev-context">${esc(taken)}</span>`;
+    }
+
+    const head     = (wS !== undefined && sPos !== undefined) ? origWithSpace.slice(wS, sPos) : '';
+    const missText = (sPos !== undefined && ePos !== undefined) ? origWithSpace.slice(sPos, ePos + 1) : grp.chars;
+    const tail     = (wE !== undefined && ePos !== undefined) ? origWithSpace.slice(ePos + 1, wE + 1) : '';
+    const fullWord = (wS !== undefined && wE !== undefined) ? origWithSpace.slice(wS, wE + 1) : grp.chars;
+
+    const ctxPlain = (() => {
+      if (prevN > 0 && wS !== undefined) {
+        const bef = origWithSpace.slice(0, wS).trimEnd().split(' ').filter(Boolean);
+        const t = bef.slice(-prevN).join(' ');
+        return t ? t + ' ' : '';
+      }
+      return '';
+    })();
+    copyTexts.push(ctxPlain + fullWord);
+
+    html += `<div class="miss-entry">
+      ${ctxHtml ? ctxHtml + '<span class="miss-sep">&nbsp;</span>' : ''}${head ? `<span class="miss-tail">${esc(head)}</span>` : ''}<span class="miss-char">${esc(missText)}</span>${tail ? `<span class="miss-tail">${esc(tail)}</span>` : ''}<span class="miss-index">#${gi+1} (${grp.charCount}자)</span>
+    </div>`;
+  });
+  html += '</div>';
+
+  const cleanForCopy = str => str.replace(/[^\uAC00-\uD7A3\u3131-\u318Ea-zA-Z0-9 %&$.?]/g, '');
+  _missCopyText = cleanForCopy(copyTexts.join(' '));
+
+  box.innerHTML = html;
+}
+
+// ============================================================
+// 6. 채점 메인
+// ============================================================
+function doGrade() {
+  if (_gradeBtnLocked) return;  // 비활성화 상태 재진입 방지
+  const origRaw = document.getElementById('originalText').value;
+  const inpRaw  = document.getElementById('inputText').value;
+
+  // 원문은 전처리(한글→ASCII 대치) 후 비교에 사용, 번문도 동일하게 전처리
+  const origProc = preprocessInput(origRaw);
+  const inpProc  = preprocessInput(inpRaw);
+
+  const origToks = tokenize(origProc);
+  const inpToks  = tokenize(inpProc);
+
+  if (origToks.length === 0) { alert('원문을 입력해주세요.'); return; }
+
+  // 전체 글자 수 = 전처리 전 원문(origRaw) 기준으로 계산
+  // ← 에이펙(3글자)을 APEC(4글자)로 변환한 뒤 세면 글자수가 틀리므로 반드시 origRaw 사용
+  const totalChars = tokenize(origRaw).reduce((s, t) => s + charCount(t), 0);
+
+  // ── 2단계 채점 엔진: 글자 Levenshtein + 어절 경계 마커 ──
+  // 1단계: 글자 단위 Levenshtein (전체 시퀀스)
+  // 2단계: 원문 어절 경계에 wordBreak 마커 삽입
+  //        → 오류 블록이 어절 경계를 넘어 병합되는 것을 방지
+  //        → "위해" 같은 어절 전체 탈자가 인접 오류블록에 흡수되지 않음
+  const rawDiff   = levenshteinDiff(origToks, inpToks);
+  const wBounds = getWordBoundaries(origProc);
+  const diff      = insertWordBoundaries(rawDiff, wBounds);
+
+  let miss = 0, add = 0, wrong = 0;
+  const wrongItems = [];
+  const missGroups = [];
+  let origCharIdx = 0;  // 원문 글자 인덱스 (탈자 위치 추적)
+
+  diff.forEach(d => {
+    const oLen = d.orig ? charCount(d.orig) : 0;
+    const iLen = d.inp  ? charCount(d.inp)  : 0;
+
+    switch (d.type) {
+      case 'wordBreak':
+        // 어절 경계: 카운팅 없음, wrong 연속 끊기만
+        if (wrongItems.length) wrongItems[wrongItems.length - 1]._consecutive = false;
+        break;
+
+      case 'equal':
+        // wrong 연속 끊김 — 다음 wrong은 새 덩어리로 시작
+        if (wrongItems.length) wrongItems[wrongItems.length - 1]._consecutive = false;
+        origCharIdx += oLen;
+        break;
+
+      case 'miss':
+        // wrong 연속 끊김
+        if (wrongItems.length) wrongItems[wrongItems.length - 1]._consecutive = false;
+        miss += oLen;
+        {
+          const last = missGroups[missGroups.length - 1];
+          if (last && last.endIdx + 1 === origCharIdx) {
+            last.endIdx    = origCharIdx + oLen - 1;
+            last.chars    += d.orig;
+            last.charCount += oLen;
+          } else {
+            missGroups.push({
+              startIdx : origCharIdx,
+              endIdx   : origCharIdx + oLen - 1,
+              chars    : d.orig,
+              charCount: oLen
+            });
+          }
+        }
+        origCharIdx += oLen;
+        break;
+
+      case 'add':
+        // add는 원문 위치를 소비하지 않으므로 wrong 연속을 끊지 않음
+        add += iLen;
+        break;
+
+      case 'wrong':
+        wrong += oLen;
+        {
+          const last = wrongItems[wrongItems.length - 1];
+          if (last && last._consecutive) {
+            // 직전 wrong 덩어리에 이어붙임
+            last.orig += d.orig;
+            last.inp  += d.inp;
+          } else {
+            // 새 덩어리 시작
+            wrongItems.push({ orig: d.orig, inp: d.inp, _consecutive: true });
+          }
+        }
+        origCharIdx += oLen;
+        break;
+    }
+  });
+
+  // 정확도 = (전체 - 감점) / 전체 × 100
+  //   감점: 오자=원문글자수, 탈자=원문글자수, 첨자=floor(글자수÷3)
+  const deduct   = wrong + miss + Math.floor(add / 3);
+  const accuracy = Math.max(0, (totalChars - deduct) / totalChars * 100).toFixed(2);
+
+  document.getElementById('statTotal').textContent = totalChars;
+  document.getElementById('statMiss').textContent  = miss;
+  document.getElementById('statAdd').textContent   = add;
+  document.getElementById('statWrong').textContent = wrong;
+  document.getElementById('statAcc').textContent   = accuracy + '%';
+
+  // ── 결과 HTML 렌더링 ──
+  // diff 결과를 순서대로 출력 (공백·부호 없음, 인접 동일 타입 병합)
+  //   equal → 원문 글자 그대로
+  //   miss  → 원문 글자 빨간색 (탈자)
+  //   add   → 번문 글자 녹색   (첨자)
+  //   wrong → 번문(원문) 파란색 (오자)
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  // 인접한 동일 타입 블록 병합 (wordBreak는 어절 경계로서 병합을 차단)
+  const merged = [];
+  for (const item of diff) {
+    if (item.type === 'wordBreak') {
+      merged.push({ type: 'wordBreak', orig: '', inp: '' });
+      continue;
+    }
+    const last = merged[merged.length - 1];
+    if (last && last.type === item.type) {
+      last.orig += (item.orig || '');
+      last.inp  += (item.inp  || '');
+    } else {
+      merged.push({ type: item.type, orig: item.orig || '', inp: item.inp || '' });
+    }
+  }
+
+  const resultHtml = merged.map(item => {
+    switch (item.type) {
+      case 'equal':     return esc(item.orig);
+      case 'wordBreak': return '';   // 경계 마커: 렌더링 출력 없음
+      case 'miss':      return `<span class="miss"  title="탈자">${esc(item.orig)}</span>`;
+      case 'add':       return `<span class="add"   title="첨자">${esc(item.inp)}</span>`;
+      case 'wrong':     return `<span class="wrong" title="오자">${esc(item.inp)}(${esc(item.orig)})</span>`;
+      default: return '';
+    }
+  }).join('');
+
+  document.getElementById('resultBox').innerHTML = resultHtml || '<p class="empty-msg">결과 없음</p>';
+
+  // 오자 분석
+  _lastWrongItems = wrongItems;
+  const freshAnalysis = analyzeWrong(wrongItems, _abbrevLevel);
+
+  if (isAccumulateMode()) {
+    mergeIntoAccumulated(freshAnalysis);
+    document.getElementById('analysisBox').innerHTML = renderAnalysis(getAccumulatedAnalysis());
+  } else {
+    document.getElementById('analysisBox').innerHTML = renderAnalysis(freshAnalysis);
+  }
+
+  // 탈자 모음
+  _lastMissData = { origWithSpace: cleanOrigWithSpace(origRaw), missGroups };
+  renderMissList();
+
+  // 탭고정 미체크 시 → 채점결과 탭으로 자동 이동
+  const lockChk = document.getElementById('tabLockChk');
+  if (!lockChk || !lockChk.checked) {
+    const resultBtn = document.querySelector('.tab-btn[onclick*="result"]');
+    if (resultBtn) showTab('result', resultBtn);
+  }
+
+  // 채점 후 버튼 비활성화 (원문/번문 수정 또는 전체 삭제 시 재활성화)
+  setGradeBtnEnabled(false);
+}
+
+let _lastWrongItems = [];
+
+// 누적 모드 체크박스 가져오기
+function isAccumulateMode() {
+  return document.getElementById('accumulateChk')?.checked ?? false;
+}
+
+// 채점하기 버튼 활성화 제어
+let _gradeBtnLocked = false;
+function setGradeBtnEnabled(enabled) {
+  _gradeBtnLocked = !enabled;
+  const btn = document.getElementById('gradeBtn');
+  btn.disabled = !enabled;
+  btn.style.opacity = enabled ? '' : '0.45';
+  btn.style.cursor  = enabled ? '' : 'not-allowed';
+}
+
+// 원문/번문 수정 시 채점 버튼 재활성화
+document.addEventListener('DOMContentLoaded', () => {
+  ['originalText','inputText'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => {
+      if (_gradeBtnLocked) setGradeBtnEnabled(true);
+    });
+  });
+});
+
+// 자모 혼동 데이터를 포함한 AI 프롬프트 복사
+function copyJasoPrompt() {
+  const btn = document.getElementById('promptCopyBtn');
+  const ok  = () => { btn.textContent = '✅ 복사됨!'; setTimeout(() => { btn.textContent = '🤖 AI프롬프트 복사'; }, 2000); };
+  const fail= () => { btn.textContent = '❌ 실패'; setTimeout(() => { btn.textContent = '🤖 AI프롬프트 복사'; }, 2000); };
+
+  // 채점 결과가 없으면 차단
+  const hasData = Object.keys(_lastJasoData.cho).length > 0
+               || Object.keys(_lastJasoData.jung).length > 0
+               || Object.keys(_lastJasoData.jong).length > 0;
+  if (!hasData) {
+    btn.textContent = '결과 없음';
+    setTimeout(() => { btn.textContent = '🤖 AI프롬프트 복사'; }, 1500);
+    return;
+  }
+
+  const sorted = obj => Object.entries(obj).sort((a,b) => b[1]-a[1]);
+
+  function fmtJaso(obj) {
+    const es = sorted(obj);
+    if (!es.length) return '(없음)';
+    return es.map(([k,n]) => `${k}(${n}회)`).join(' ');
+  }
+
+  const choStr  = fmtJaso(_lastJasoData.cho);
+  const jungStr = fmtJaso(_lastJasoData.jung);
+  const jongStr = fmtJaso(_lastJasoData.jong);
+
+  const prompt =
+`[역할]
+너는 한글속기 자격증 수험생을 위한 연습용 글을 생성하는 전문가야.
+
+[목적]
+아래 혼동 자모 데이터를 바탕으로, 속기 연습용 장문 글을 작성해줘.
+
+[혼동 자모 데이터]
+초성 : ${choStr}
+중성 : ${jungStr}
+종성 : ${jongStr}
+
+[핵심 조건 — 반드시 모두 지켜야 함]
+1. 글자 수: 1200자~2000자 (공백 제외)
+2. 형식: 신문 사설 문체, 단락 구분 없이 줄바꿈 없이 이어서 작성
+3. 단어 선정 기준:
+   - 속기 약어로 쓰이지 않을 만큼 어렵거나 생소한 단어 위주
+   - 2~4음절의 단타(단독 타건) 단어 중심
+   - 자주 쓰이는 쉬운 단어 최소화
+4. 자모 배치 기준:
+   - 혼동 빈도가 높은 자모쌍을 포함한 단어를 의도적으로 자주 배치
+   - 초성·중성·종성 혼동 자모를 균형 있게 분산 배치
+5. 결과물에 한글 낱자(ㄱ~ㅎ, ㅏ~ㅣ)가 단독으로 등장하지 않을 것
+6. 사용 가능한 문장부호는 .?% 만 사용하며 그 외 기호는 절대 사용하지 않을 것 
+7. 결과물 외 부가 설명, 표, 주석 불필요`;
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(prompt).then(ok).catch(() => {
+      fallbackCopy(prompt, ok, fail);
+    });
+  } else {
+    fallbackCopy(prompt, ok, fail);
+  }
+}
+
+function fallbackCopy(text, ok, fail) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  try { document.execCommand('copy') ? ok() : fail(); }
+  catch { fail(); }
+  document.body.removeChild(ta);
+}
+
+
+// ============================================================
+// 약어 빈도수 체크 — 신문 사설 데이터 기반
+// ============================================================
+let CORPUS_NORMALIZED = '';
+function normalizeForFreq(str) {
+  return str.replace(/\s/g,'').replace(/를/g,'을').replace(/과/g,'와').replace(/으로/g,'므로');
+}
+function countOccurrences(hay, needle) {
+  if (!needle) return 0;
+  let n=0, i=0;
+  while ((i=hay.indexOf(needle,i)) !== -1) { n++; i+=needle.length; }
+  return n;
+}
+
+let _freqLastResults = [];  // 일괄복사용
+
+function runFreqCheck() {
+  const raw = document.getElementById('freqAbbrInput').value.trim();
+  const box = document.getElementById('freqResultBox');
+  const hdr = document.getElementById('freqHeader');
+  if (!raw) {
+    box.innerHTML = '<p class="empty-msg">약어를 입력해 주세요.</p>';
+    hdr.textContent = ''; _freqLastResults = []; return;
+  }
+  box.innerHTML = '<p class="empty-msg">⏳ 집계 중...</p>';
+  setTimeout(() => {
+    const lines = raw.split('\n').map(s=>s.trim()).filter(Boolean);
+    // 중복 제거: 정규화 결과가 같으면 먼저 나온 원문 약어를 대표로 유지
+    const seenNorm = new Set();
+    const dedupLines = [];
+    for (const abbr of lines) {
+      const norm = normalizeForFreq(abbr);
+      if (!norm || seenNorm.has(norm)) continue;
+      seenNorm.add(norm);
+      dedupLines.push(abbr);
+    }
+    const results=[], zeros=[];
+    for (const abbr of dedupLines) {
+      const norm = normalizeForFreq(abbr);
+      const cnt = countOccurrences(CORPUS_NORMALIZED, norm);
+      if (cnt>0) results.push({abbr,cnt}); else zeros.push(abbr);
+    }
+    results.sort((a,b)=>b.cnt-a.cnt);
+    _freqLastResults = results;
+    hdr.textContent = (results.length||zeros.length)
+      ? `총 ${results.length}개 포함 / ${zeros.length}개 제외`
+      : '결과 없음';
+    if (!results.length && !zeros.length) {
+      box.innerHTML = '<p class="empty-msg">일치하는 약어가 없습니다.</p>'; return;
+    }
+    const maxCnt = results.length ? results[0].cnt : 1;
+    let out='';
+    if (results.length) {
+      out += '<div class="freq-list">';
+      results.forEach(({abbr,cnt}, i) => {
+        const r=cnt/maxCnt;
+        const cls = r>=0.875?'rank-1':r>=0.75?'rank-2':r>=0.625?'rank-3':r>=0.5?'rank-4':r>=0.375?'rank-5':r>=0.25?'rank-6':r>=0.125?'rank-7':'rank-8';
+        const barW = Math.round(r*100);
+        out += `<div class="freq-item ${cls}">` +
+          `<span class="freq-rank">${i+1}</span>` +
+          `<span class="freq-word">${abbr}</span>` +
+          `<div class="freq-bar-wrap"><div class="freq-bar" style="width:${barW}%"></div></div>` +
+          `<span class="freq-cnt">${cnt}회</span>` +
+          `</div>`;
+      });
+      out += '</div>';
+    }
+    if (zeros.length) {
+      out += `<div class="freq-zero-section"><div class="freq-zero-hdr">0건 약어 (${zeros.length}개)</div><div class="freq-zero-list">`;
+      for (const w of zeros) out += `<span class="freq-zero-item">${w}</span>`;
+      out += '</div></div>';
+    }
+    box.innerHTML = out;
+  }, 30);
+}
+
+function freqCopyAll() {
+  const btn = document.querySelector('.freq-copy-btn');
+  const text = _freqLastResults.map(r=>r.abbr).join('\n');
+  const ok   = ()=>{ btn.textContent='✅ 복사됨!'; setTimeout(()=>{btn.textContent='📋 일괄복사';},1500); };
+  const fail = ()=>{ btn.textContent='❌ 실패';   setTimeout(()=>{btn.textContent='📋 일괄복사';},1500); };
+  if (!text) { btn.textContent='결과 없음'; setTimeout(()=>{btn.textContent='📋 일괄복사';},1500); return; }
+  navigator.clipboard && navigator.clipboard.writeText(text)
+    ? navigator.clipboard.writeText(text).then(ok).catch(()=>fallbackCopy(text,ok,fail))
+    : fallbackCopy(text,ok,fail);
+}
+
+// ESC키: 원문/번문 텍스트박스 내용 초기화
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    const active = document.activeElement;
+    if (active && (active.id === 'originalText' || active.id === 'inputText')) {
+      active.value = '';
+      active.focus();
+      e.preventDefault();
+    }
+  }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 'Enter') {
+    const active   = document.querySelector('.tab-panel:not([style*="none"])');
+    const isFreq   = active && active.id === 'tab-freq';
+    const isLocked = document.getElementById('tabLockChk')?.checked ?? true;
+    // freq 탭 + 탭고정 ON  → 빈도수 체크
+    // freq 탭 + 탭고정 OFF → 채점 실행 (doGrade 끝에서 결과 탭으로 자동이동)
+    // 그 외               → 채점 실행
+    if (isFreq && isLocked) runFreqCheck(); else doGrade();
+  }
+});
+
+// 사설데이터 상태 표시 업데이트
+function updateCorpusStatus() {
+  const el  = document.getElementById('corpusStatus');
+  const btn = document.getElementById('freqRunBtn');
+  if (!el) return;
+  if (CORPUS_NORMALIZED.length > 0) {
+    el.textContent = `✅ 사설데이터 로드 완료 — 총 ${CORPUS_NORMALIZED.length.toLocaleString()}자`;
+    el.style.color = 'var(--emerald)';
+    el.style.fontWeight = '700';
+    if (btn) btn.disabled = false;
+  } else {
+    el.textContent = '사설 데이터를 불러오면 빈도수 체크가 활성화됩니다.';
+    el.style.color = 'var(--emerald)';
+    el.style.fontWeight = '';
+    if (btn) btn.disabled = true;
+  }
+}
+
+// 파일 불러오기 (📂 버튼)
+function loadCorpusFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const el = document.getElementById('corpusStatus');
+  el.textContent = '⏳ 로딩 중...';
+  const reader = new FileReader();
+  reader.onload = e => {
+    CORPUS_NORMALIZED = normalizeForFreq(e.target.result);
+    updateCorpusStatus();
+  };
+  reader.onerror = () => {
+    el.textContent = '❌ 파일 읽기 실패';
+    el.style.color = 'var(--red)';
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+// ============================================================
+// 우클릭 차단 + 텍스트박스 외 드래그/선택 차단
+// ============================================================
+document.addEventListener('contextmenu', e => e.preventDefault());
+
+document.addEventListener('selectstart', e => {
+  if (!e.target.closest('textarea, input[type="text"]')) e.preventDefault();
+});
+
+document.addEventListener('mousedown', e => {
+  if (!e.target.closest('textarea, input[type="text"]')) {
+    if (e.detail > 1) e.preventDefault(); // 더블클릭 선택 방지
+  }
+});
+
+
+
+</script>
+</body>
+</html>
