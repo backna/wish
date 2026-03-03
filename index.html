@@ -230,6 +230,29 @@
   }
 
   #analysisBox{padding-right:10px;overflow-x:hidden;}
+
+  /* 자모 혼동 툴팁 */
+  .jaso-item{position:relative;}
+  .jaso-item[data-samples]{cursor:default;}
+  .jaso-tooltip{
+    display:none;
+    position:fixed;
+    z-index:9999;
+    background:#2a2a38;
+    color:#f0f0f8;
+    font-size:12px;
+    font-weight:500;
+    line-height:1.7;
+    padding:9px 13px;
+    border-radius:8px;
+    box-shadow:0 4px 20px rgba(0,0,0,0.25);
+    max-width:260px;
+    word-break:break-all;
+    white-space:normal;
+    pointer-events:none;
+    border:1px solid rgba(255,255,255,0.08);
+  }
+  .jaso-tooltip .tt-body{color:#f0f0f8;}
   #missListBox{padding-right:10px;overflow-x:hidden;}
 
   /* 텍스트박스 모서리 보호 — overflow:hidden wrapper로 스크롤바 클리핑 */
@@ -244,6 +267,7 @@
 </style>
 </head>
 <body>
+<div id="jasoTooltip" class="jaso-tooltip"></div>
 <div class="theme-switcher">
   <button class="theme-btn t-pink on"    onclick="setTheme('pink',this)"><span class="dot"></span>핑크</button>
   <button class="theme-btn t-purple"     onclick="setTheme('purple',this)"><span class="dot"></span>보라</button>
@@ -446,33 +470,43 @@ function jasoSimilarity(c1,c2){const j1=splitHangul(c1),j2=splitHangul(c2);if(!j
 
 function analyzeWrong(wrongList,level){
   const threshold=level/100,cho={},jung={},jong={},abbrevMap={};
+  const choSamples={},jungSamples={},jongSamples={};
   for(const{orig,inp}of wrongList){
     const oc=[...orig],ic=[...inp];
     if(!oc.every(isHangul)||!ic.every(isHangul)){const key=`${inp}||${orig}`;if(abbrevMap[key])abbrevMap[key].cnt++;else abbrevMap[key]={orig,inp,sim:0,cnt:1};continue;}
     let sim;if(oc.length>0){let total=0;for(let k=0;k<oc.length;k++)total+=jasoSimilarity(oc[k],ic[k]);sim=total/oc.length;}else sim=0;
     if(sim<threshold){const key=`${inp}||${orig}`;if(abbrevMap[key])abbrevMap[key].cnt++;else abbrevMap[key]={orig,inp,sim,cnt:1};continue;}
-    for(let k=0;k<oc.length;k++){const oJ=splitHangul(oc[k]),iJ=splitHangul(ic[k]);if(!oJ||!iJ)continue;if(oJ.cho!==iJ.cho){const key=biKey(oJ.cho,iJ.cho);cho[key]=(cho[key]||0)+1;}if(oJ.jung!==iJ.jung){const key=biKey(oJ.jung,iJ.jung);jung[key]=(jung[key]||0)+1;}if(oJ.jong||iJ.jong){if(oJ.jong!==iJ.jong){const key=biKey(oJ.jong||'(없음)',iJ.jong||'(없음)');jong[key]=(jong[key]||0)+1;}}}
+    const sampleStr=`${inp}(${orig})`;
+    for(let k=0;k<oc.length;k++){const oJ=splitHangul(oc[k]),iJ=splitHangul(ic[k]);if(!oJ||!iJ)continue;
+      if(oJ.cho!==iJ.cho){const key=biKey(oJ.cho,iJ.cho);cho[key]=(cho[key]||0)+1;if(!choSamples[key])choSamples[key]=[];if(!choSamples[key].includes(sampleStr))choSamples[key].push(sampleStr);}
+      if(oJ.jung!==iJ.jung){const key=biKey(oJ.jung,iJ.jung);jung[key]=(jung[key]||0)+1;if(!jungSamples[key])jungSamples[key]=[];if(!jungSamples[key].includes(sampleStr))jungSamples[key].push(sampleStr);}
+      if(oJ.jong||iJ.jong){if(oJ.jong!==iJ.jong){const key=biKey(oJ.jong||'(없음)',iJ.jong||'(없음)');jong[key]=(jong[key]||0)+1;if(!jongSamples[key])jongSamples[key]=[];if(!jongSamples[key].includes(sampleStr))jongSamples[key].push(sampleStr);}}}
   }
   const skipAbbrev=Object.values(abbrevMap).sort((a,b)=>b.cnt-a.cnt);
   _lastJasoData={cho,jung,jong};
-  return{cho,jung,jong,skipAbbrev};
+  return{cho,jung,jong,skipAbbrev,choSamples,jungSamples,jongSamples};
 }
 
 let _abbrevLevel=50;
 let _lastJasoData={cho:{},jung:{},jong:{}};
 let _accumulatedCho={},_accumulatedJung={},_accumulatedJong={},_accumulatedAbbrevMap={};
+let _accumulatedChoSamples={},_accumulatedJungSamples={},_accumulatedJongSamples={};
 
-function resetAccumulatedData(){_accumulatedCho={};_accumulatedJung={};_accumulatedJong={};_accumulatedAbbrevMap={};}
-function mergeIntoAccumulated({cho,jung,jong,skipAbbrev}){
+function resetAccumulatedData(){_accumulatedCho={};_accumulatedJung={};_accumulatedJong={};_accumulatedAbbrevMap={};_accumulatedChoSamples={};_accumulatedJungSamples={};_accumulatedJongSamples={};}
+function _mergeSamples(target,src){for(const[k,arr]of Object.entries(src)){if(!target[k])target[k]=[];for(const s of arr)if(!target[k].includes(s))target[k].push(s);}}
+function mergeIntoAccumulated({cho,jung,jong,skipAbbrev,choSamples,jungSamples,jongSamples}){
   for(const[k,v]of Object.entries(cho))_accumulatedCho[k]=(_accumulatedCho[k]||0)+v;
   for(const[k,v]of Object.entries(jung))_accumulatedJung[k]=(_accumulatedJung[k]||0)+v;
   for(const[k,v]of Object.entries(jong))_accumulatedJong[k]=(_accumulatedJong[k]||0)+v;
   for(const{orig,inp,sim,cnt}of skipAbbrev){const key=`${inp}||${orig}`;if(_accumulatedAbbrevMap[key])_accumulatedAbbrevMap[key].cnt+=cnt;else _accumulatedAbbrevMap[key]={orig,inp,sim,cnt};}
+  if(choSamples)_mergeSamples(_accumulatedChoSamples,choSamples);
+  if(jungSamples)_mergeSamples(_accumulatedJungSamples,jungSamples);
+  if(jongSamples)_mergeSamples(_accumulatedJongSamples,jongSamples);
 }
 function getAccumulatedAnalysis(){
   const skipAbbrev=Object.values(_accumulatedAbbrevMap).sort((a,b)=>b.cnt-a.cnt);
   _lastJasoData={cho:_accumulatedCho,jung:_accumulatedJung,jong:_accumulatedJong};
-  return{cho:_accumulatedCho,jung:_accumulatedJung,jong:_accumulatedJong,skipAbbrev};
+  return{cho:_accumulatedCho,jung:_accumulatedJung,jong:_accumulatedJong,skipAbbrev,choSamples:_accumulatedChoSamples,jungSamples:_accumulatedJungSamples,jongSamples:_accumulatedJongSamples};
 }
 
 function onAccumulateChange(chk){
@@ -492,18 +526,18 @@ function onAccumulateChange(chk){
   }
 }
 
-function renderAnalysis({cho,jung,jong,skipAbbrev}){
+function renderAnalysis({cho,jung,jong,skipAbbrev,choSamples,jungSamples,jongSamples}){
   const sorted=obj=>Object.entries(obj).sort((a,b)=>b[1]-a[1]);
   const allVals=[...Object.values(cho),...Object.values(jung),...Object.values(jong)];
   const maxVal=allVals.length?Math.max(...allVals):1;
   const relCls=n=>{const r=n/maxVal;if(r>=0.66)return'high';if(r>=0.33)return'mid';return'';};
-  const grid=(obj,label)=>{
+  const grid=(obj,label,samplesObj)=>{
     const es=sorted(obj);if(!es.length)return'';
-    return`<div class="jaso-label">${label}</div><div class="jaso-grid">`+es.map(([k,n])=>{const[a,b]=k.split('↔');const cls=relCls(n);return`<div class="jaso-item ${cls}"><span class="pair">${a}</span><span class="arrow">↔</span><span class="pair">${b}</span><span class="cnt-circle">${n}회</span></div>`;}).join('')+'</div>';
+    return`<div class="jaso-label">${label}</div><div class="jaso-grid">`+es.map(([k,n])=>{const[a,b]=k.split('↔');const cls=relCls(n);const samples=samplesObj&&samplesObj[k]?encodeURIComponent(samplesObj[k].join(',')):'';return`<div class="jaso-item ${cls}"${samples?` data-samples="${samples}"`:''}><span class="pair">${a}</span><span class="arrow">↔</span><span class="pair">${b}</span><span class="cnt-circle">${n}회</span></div>`;}).join('')+'</div>';
   };
   let html='<div class="analysis-section"><h3>자모 오자 분석 (초·중·종성 양방향 합산)</h3>';
   const hasData=[cho,jung,jong].some(o=>Object.keys(o).length>0);
-  html+=hasData?grid(cho,'초성 혼동')+grid(jung,'중성 혼동')+grid(jong,'종성 혼동'):'<p style="color:var(--sub);font-size:13px;">분석 가능한 자모 오자가 없습니다.</p>';
+  html+=hasData?grid(cho,'초성 혼동',choSamples)+grid(jung,'중성 혼동',jungSamples)+grid(jong,'종성 혼동',jongSamples):'<p style="color:var(--sub);font-size:13px;">분석 가능한 자모 오자가 없습니다.</p>';
   html+='</div>';
   if(skipAbbrev.length){
     html+=`<div class="analysis-section"><h3>약어 혼동 추정 (자모 유사도 ${_abbrevLevel}% 미만)</h3><div class="abbrev-note-box">💡 글자 형태가 크게 달라 의도한 약어가 아닌 다른 약어를 입력한 것으로 추정 / 형식: 오자(원문)</div><div class="skip-list">`;
@@ -667,6 +701,49 @@ window.addEventListener('DOMContentLoaded',autoLoadCorpus);
 document.addEventListener('contextmenu',e=>e.preventDefault());
 document.addEventListener('selectstart',e=>{if(!e.target.closest('textarea, input[type="text"]'))e.preventDefault();});
 document.addEventListener('mousedown',e=>{if(!e.target.closest('textarea, input[type="text"]'))if(e.detail>1)e.preventDefault();});
+
+// ============ 자모 혼동 툴팁 ============
+(function(){
+  const tt=document.getElementById('jasoTooltip');
+  let curEl=null;
+  function formatSamples(raw){
+    const items=decodeURIComponent(raw).split(',').filter(Boolean);
+    // 한 줄에 최대 4개씩, 각 항목 사이 쉼표+공백
+    const COLS=4,lines=[];
+    for(let i=0;i<items.length;i+=COLS)lines.push(items.slice(i,i+COLS).join(', '));
+    return lines.join('\n');
+  }
+  function showTip(el,e){
+    const raw=el.dataset.samples;
+    if(!raw)return;
+    const pair=el.querySelector('.pair')?.textContent||'';
+    const text=formatSamples(raw);
+    tt.innerHTML=`<div class="tt-body">${text.replace(/\n/g,'<br>')}</div>`;
+    tt.style.display='block';
+    positionTip(e);
+  }
+  function positionTip(e){
+    const PAD=12,TW=tt.offsetWidth,TH=tt.offsetHeight;
+    const vw=window.innerWidth,vh=window.innerHeight;
+    let x=e.clientX+PAD,y=e.clientY+PAD;
+    if(x+TW>vw-6)x=e.clientX-TW-PAD;
+    if(y+TH>vh-6)y=e.clientY-TH-PAD;
+    if(x<6)x=6;if(y<6)y=6;
+    tt.style.left=x+'px';tt.style.top=y+'px';
+  }
+  document.addEventListener('mouseover',e=>{
+    const el=e.target.closest('.jaso-item[data-samples]');
+    if(!el){if(curEl){tt.style.display='none';curEl=null;}return;}
+    if(el!==curEl){curEl=el;showTip(el,e);}
+  });
+  document.addEventListener('mousemove',e=>{
+    if(curEl&&tt.style.display==='block')positionTip(e);
+  });
+  document.addEventListener('mouseout',e=>{
+    const el=e.target.closest('.jaso-item[data-samples]');
+    if(el&&!el.contains(e.relatedTarget)){tt.style.display='none';curEl=null;}
+  });
+})();
 
 var _themes={
   pink:{'--theme-50':'#fff5f7','--theme-100':'#fde8ed','--theme-200':'#f8c8d0','--theme-300':'#f0a0b0','--theme-400':'#e8909a','--theme-500':'#d87080','--theme-600':'#b85060','--theme-sub':'#c07888','--theme-shadow':'rgba(216,112,128,0.12)','--theme-vivid':'#e0204a',body:'linear-gradient(135deg,#fff5f7 0%,#fdeaf0 50%,#fcdde6 100%)'},
