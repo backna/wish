@@ -430,25 +430,78 @@ function preprocessInput(str){let s=str;for(const[ko,ascii]of _MULTI_SUBS)s=s.sp
 function tokenize(str){const tokens=[];for(const c of str)if(isValid(c))tokens.push(c);return tokens;}
 function charCount(tok){return 1;}
 
+// raw 텍스트 → 유효 글자 단위 display 배열 (전처리 없음, 원문/번문 공용)
+function buildRawDisplayToks(rawStr){
+  const display=[];
+  for(const c of rawStr)if(isValid(c))display.push(c);
+  return display;
+}
+
+// _MULTI_SUBS 기반 블록 매칭 쌍 테이블
+// 원문에 ascii 시퀀스(~, cm …)가 있고 번문에 한글 시퀀스(에서, 센티미터 …)가 있으면 정답 처리
+const _SUBS_PAIRS=(()=>{
+  const pairs=[];
+  for(const[ko,ascii]of _MULTI_SUBS){
+    const asciiToks=[...ascii].filter(c=>isValid(c));
+    const koToks=[...ko].filter(c=>isValid(c));
+    if(asciiToks.length>0&&koToks.length>0)pairs.push({asciiToks,koToks});
+  }
+  return pairs;
+})();
+
 const _SINGLE_NORM={'a':'a','b':'b','c':'c','d':'d','e':'e','f':'f','g':'g','h':'h','i':'i','j':'j','k':'k','l':'l','m':'m','n':'n','o':'o','p':'p','q':'q','r':'r','s':'s','t':'t','u':'u','v':'v','w':'w','x':'x','y':'y','z':'z','A':'a','B':'b','C':'c','D':'d','E':'e','F':'f','G':'g','H':'h','I':'i','J':'j','K':'k','L':'l','M':'m','N':'n','O':'o','P':'p','Q':'q','R':'r','S':'s','T':'t','U':'u','V':'v','W':'w','X':'x','Y':'y','Z':'z','비':'b','시':'c','디':'d','이':'e','지':'g','엘':'l','엠':'m','엔':'n','오':'o','피':'p','큐':'q','알':'r','티':'t','유':'u','%':'%','$':'$','&':'&','~':'~'};
 function _normTok(c){return _SINGLE_NORM[c]!==undefined?_SINGLE_NORM[c]:c;}
 function tokEq(a,b){if(a===b)return true;return _normTok(a)===_normTok(b);}
 
 function levenshteinDiff(oToks,iToks){
   const M=oToks.length,N=iToks.length;
-  const dp=Array.from({length:M+1},()=>new Float64Array(N+1));
-  for(let i=0;i<=M;i++)dp[i][0]=i;
-  for(let j=0;j<=N;j++)dp[0][j]=j;
-  for(let i=1;i<=M;i++)for(let j=1;j<=N;j++){
-    if(tokEq(oToks[i-1],iToks[j-1]))dp[i][j]=dp[i-1][j-1];
-    else dp[i][j]=1+Math.min(dp[i-1][j-1],dp[i-1][j],dp[i][j-1]);
+  const INF=M+N+1;
+  const dp=Array.from({length:M+1},()=>new Float64Array(N+1).fill(INF));
+  dp[0][0]=0;
+  for(let i=1;i<=M;i++)dp[i][0]=i;
+  for(let j=1;j<=N;j++)dp[0][j]=j;
+  for(let i=1;i<=M;i++){
+    for(let j=1;j<=N;j++){
+      // 1. 일반 채점 (equal / replace / delete / insert)
+      if(tokEq(oToks[i-1],iToks[j-1]))dp[i][j]=dp[i-1][j-1];
+      else dp[i][j]=1+Math.min(dp[i-1][j-1],dp[i-1][j],dp[i][j-1]);
+      // 2. 블록 매칭: 원문 ascii 시퀀스 ↔ 번문 한글 시퀀스 → 비용 0 (equal)
+      for(const{asciiToks,koToks}of _SUBS_PAIRS){
+        const aLen=asciiToks.length,kLen=koToks.length;
+        if(i<aLen||j<kLen)continue;
+        let oMatch=true;
+        for(let k=0;k<aLen;k++)if(oToks[i-aLen+k]!==asciiToks[k]){oMatch=false;break;}
+        if(!oMatch)continue;
+        let iMatch=true;
+        for(let k=0;k<kLen;k++)if(iToks[j-kLen+k]!==koToks[k]){iMatch=false;break;}
+        if(!iMatch)continue;
+        if(dp[i-aLen][j-kLen]<dp[i][j])dp[i][j]=dp[i-aLen][j-kLen];
+      }
+    }
   }
   const ops=[];let i=M,j=N;
   while(i>0||j>0){
-    if(i>0&&j>0&&tokEq(oToks[i-1],iToks[j-1])){ops.unshift({type:'equal',orig:oToks[i-1],inp:iToks[j-1]});i--;j--;}
-    else if(i>0&&dp[i][j]===dp[i-1][j]+1){ops.unshift({type:'miss',orig:oToks[i-1],inp:''});i--;}
-    else if(i>0&&j>0&&dp[i][j]===dp[i-1][j-1]+1){ops.unshift({type:'wrong',orig:oToks[i-1],inp:iToks[j-1]});i--;j--;}
-    else{ops.unshift({type:'add',orig:'',inp:iToks[j-1]});j--;}
+    // 블록 매칭 역추적 우선
+    let blockFound=false;
+    for(const{asciiToks,koToks}of _SUBS_PAIRS){
+      const aLen=asciiToks.length,kLen=koToks.length;
+      if(i<aLen||j<kLen)continue;
+      if(dp[i][j]!==dp[i-aLen][j-kLen])continue;
+      let oMatch=true;
+      for(let k=0;k<aLen;k++)if(oToks[i-aLen+k]!==asciiToks[k]){oMatch=false;break;}
+      if(!oMatch)continue;
+      let iMatch=true;
+      for(let k=0;k<kLen;k++)if(iToks[j-kLen+k]!==koToks[k]){iMatch=false;break;}
+      if(!iMatch)continue;
+      ops.unshift({type:'blockEqual',orig:asciiToks.join(''),inp:koToks.join(''),origStartIdx:i-aLen,inpStartIdx:j-kLen,origLen:aLen,inpLen:kLen});
+      i-=aLen;j-=kLen;blockFound=true;break;
+    }
+    if(blockFound)continue;
+    // 일반 역추적
+    if(i>0&&j>0&&tokEq(oToks[i-1],iToks[j-1])){ops.unshift({type:'equal',orig:oToks[i-1],inp:iToks[j-1],origIdx:i-1,inpIdx:j-1});i--;j--;}
+    else if(j>0&&dp[i][j]===dp[i][j-1]+1){ops.unshift({type:'add',orig:'',inp:iToks[j-1],origIdx:-1,inpIdx:j-1});j--;}
+    else if(i>0&&j>0&&dp[i][j]===dp[i-1][j-1]+1){ops.unshift({type:'wrong',orig:oToks[i-1],inp:iToks[j-1],origIdx:i-1,inpIdx:j-1});i--;j--;}
+    else{ops.unshift({type:'miss',orig:oToks[i-1],inp:'',origIdx:i-1,inpIdx:-1});i--;}
   }
   return ops;
 }
@@ -475,12 +528,13 @@ function jasoSimilarity(c1,c2){const j1=splitHangul(c1),j2=splitHangul(c2);if(!j
 function analyzeWrong(wrongList,level){
   const threshold=level/100,cho={},jung={},jong={},abbrevMap={};
   const choSamples={},jungSamples={},jongSamples={};
-  for(const{orig,inp}of wrongList){
+  for(const{orig,inp,origDisplay,inpDisplay}of wrongList){
+    const dispOrig=origDisplay||orig, dispInp=inpDisplay||inp;
     const oc=[...orig],ic=[...inp];
-    if(!oc.every(isHangul)||!ic.every(isHangul)){const key=`${inp}||${orig}`;if(abbrevMap[key])abbrevMap[key].cnt++;else abbrevMap[key]={orig,inp,sim:0,cnt:1};continue;}
+    if(!oc.every(isHangul)||!ic.every(isHangul)){const key=`${dispInp}||${dispOrig}`;if(abbrevMap[key])abbrevMap[key].cnt++;else abbrevMap[key]={orig:dispOrig,inp:dispInp,sim:0,cnt:1};continue;}
     let sim;if(oc.length>0){let total=0;for(let k=0;k<oc.length;k++)total+=jasoSimilarity(oc[k],ic[k]);sim=total/oc.length;}else sim=0;
-    if(sim<threshold){const key=`${inp}||${orig}`;if(abbrevMap[key])abbrevMap[key].cnt++;else abbrevMap[key]={orig,inp,sim,cnt:1};continue;}
-    const sampleStr=`${inp}(${orig})`;
+    if(sim<threshold){const key=`${dispInp}||${dispOrig}`;if(abbrevMap[key])abbrevMap[key].cnt++;else abbrevMap[key]={orig:dispOrig,inp:dispInp,sim,cnt:1};continue;}
+    const sampleStr=`${dispInp}(${dispOrig})`;
     for(let k=0;k<oc.length;k++){const oJ=splitHangul(oc[k]),iJ=splitHangul(ic[k]);if(!oJ||!iJ)continue;
       if(oJ.cho!==iJ.cho){const key=biKey(oJ.cho,iJ.cho);cho[key]=(cho[key]||0)+1;if(!choSamples[key])choSamples[key]=[];if(!choSamples[key].includes(sampleStr))choSamples[key].push(sampleStr);}
       if(oJ.jung!==iJ.jung){const key=biKey(oJ.jung,iJ.jung);jung[key]=(jung[key]||0)+1;if(!jungSamples[key])jungSamples[key]=[];if(!jungSamples[key].includes(sampleStr))jungSamples[key].push(sampleStr);}
@@ -589,20 +643,23 @@ function doGrade(){
   if(_gradeBtnLocked)return;
   const origRaw=document.getElementById('originalText').value;
   const inpRaw=document.getElementById('inputText').value;
-  const origProc=preprocessInput(origRaw),inpProc=preprocessInput(inpRaw);
-  const origToks=tokenize(origProc),inpToks=tokenize(inpProc);
+  const origToks=tokenize(origRaw),inpToks=tokenize(inpRaw);
   if(origToks.length===0){alert('원문을 입력해주세요.');return;}
+  const origDisplayToks=buildRawDisplayToks(origRaw);
+  const inpDisplayToks=buildRawDisplayToks(inpRaw);
   const totalChars=tokenize(origRaw).reduce((s,t)=>s+charCount(t),0);
   const rawDiff=levenshteinDiff(origToks,inpToks);
-  const wBounds=getWordBoundaries(origProc);
+  const wBounds=getWordBoundaries(origRaw);
   const diff=insertWordBoundaries(rawDiff,wBounds);
   let miss=0,add=0,wrong=0;
   const wrongItems=[],missGroups=[];
   let origCharIdx=0;
   diff.forEach(d=>{
-    const oLen=d.orig?charCount(d.orig):0,iLen=d.inp?charCount(d.inp):0;
+    const oLen=d.origLen!=null?d.origLen:(d.orig?charCount(d.orig):0);
+    const iLen=d.inpLen!=null?d.inpLen:(d.inp?charCount(d.inp):0);
     switch(d.type){
       case'wordBreak':if(wrongItems.length)wrongItems[wrongItems.length-1]._consecutive=false;break;
+      case'blockEqual':
       case'equal':if(wrongItems.length)wrongItems[wrongItems.length-1]._consecutive=false;origCharIdx+=oLen;break;
       case'miss':
         if(wrongItems.length)wrongItems[wrongItems.length-1]._consecutive=false;
@@ -612,7 +669,7 @@ function doGrade(){
       case'add':add+=iLen;break;
       case'wrong':
         wrong+=oLen;
-        {const last=wrongItems[wrongItems.length-1];if(last&&last._consecutive){last.orig+=d.orig;last.inp+=d.inp;}else wrongItems.push({orig:d.orig,inp:d.inp,_consecutive:true});}
+        {const oDisp=(d.origIdx>=0&&origDisplayToks[d.origIdx]!=null)?origDisplayToks[d.origIdx]:(d.orig||'');const iDisp=(d.inpIdx>=0&&inpDisplayToks[d.inpIdx]!=null)?inpDisplayToks[d.inpIdx]:(d.inp||'');const last=wrongItems[wrongItems.length-1];if(last&&last._consecutive){last.orig+=d.orig;last.inp+=d.inp;last.origDisplay+=oDisp;last.inpDisplay+=iDisp;}else wrongItems.push({orig:d.orig,inp:d.inp,origDisplay:oDisp,inpDisplay:iDisp,_consecutive:true});}
         origCharIdx+=oLen;break;
     }
   });
@@ -625,8 +682,23 @@ function doGrade(){
   document.getElementById('statAcc').textContent=accuracy+'%';
   const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const merged=[];
-  for(const item of diff){if(item.type==='wordBreak'){merged.push({type:'wordBreak',orig:'',inp:''});continue;}const last=merged[merged.length-1];if(last&&last.type===item.type){last.orig+=(item.orig||'');last.inp+=(item.inp||'');}else merged.push({type:item.type,orig:item.orig||'',inp:item.inp||''});}
-  const resultHtml=merged.map(item=>{switch(item.type){case'equal':return esc(item.orig);case'wordBreak':return'';case'miss':return`<span class="miss" title="탈자">${esc(item.orig)}</span>`;case'add':return`<span class="add" title="첨자">${esc(item.inp)}</span>`;case'wrong':return`<span class="wrong" title="오자">${esc(item.inp)}(${esc(item.orig)})</span>`;default:return'';}}).join('');
+  for(const item of diff){
+    if(item.type==='wordBreak'){merged.push({type:'wordBreak',orig:'',inp:'',display:'',inpDisplay:''});continue;}
+    if(item.type==='blockEqual'){
+      const dispStr=Array.from({length:item.origLen},(_,k)=>origDisplayToks[item.origStartIdx+k]||'').join('');
+      const inpDispStr=Array.from({length:item.inpLen},(_,k)=>inpDisplayToks[item.inpStartIdx+k]||'').join('');
+      const last=merged[merged.length-1];
+      if(last&&last.type==='equal'){last.orig+=item.orig;last.inp+=item.inp;last.display+=dispStr;last.inpDisplay+=inpDispStr;}
+      else merged.push({type:'equal',orig:item.orig,inp:item.inp,display:dispStr,inpDisplay:inpDispStr});
+      continue;
+    }
+    const dispStr=(item.origIdx>=0&&origDisplayToks[item.origIdx]!=null)?origDisplayToks[item.origIdx]:(item.orig||'');
+    const inpDispStr=(item.inpIdx>=0&&inpDisplayToks[item.inpIdx]!=null)?inpDisplayToks[item.inpIdx]:(item.inp||'');
+    const last=merged[merged.length-1];
+    if(last&&last.type===item.type){last.orig+=(item.orig||'');last.inp+=(item.inp||'');last.display+=dispStr;last.inpDisplay+=inpDispStr;}
+    else merged.push({type:item.type,orig:item.orig||'',inp:item.inp||'',display:dispStr,inpDisplay:inpDispStr});
+  }
+  const resultHtml=merged.map(item=>{switch(item.type){case'equal':return esc(item.display||item.orig);case'wordBreak':return' ';case'miss':return`<span class="miss" title="탈자">${esc(item.display||item.orig)}</span>`;case'add':return`<span class="add" title="첨자">${esc(item.inpDisplay||item.inp)}</span>`;case'wrong':return`<span class="wrong" title="오자">${esc(item.inpDisplay||item.inp)}(${esc(item.display||item.orig)})</span>`;default:return'';}}).join('');
   document.getElementById('resultBox').innerHTML=resultHtml||'<p class="empty-msg">결과 없음</p>';
   _lastWrongItems=wrongItems;
   const freshAnalysis=analyzeWrong(wrongItems,_abbrevLevel);
