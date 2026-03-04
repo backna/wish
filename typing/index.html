@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>속기 타자연습</title>
+<title>백나타자</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -66,7 +66,7 @@
   /* 상단 미리보기 */
   .preview-container { background:var(--surface); border:1px solid var(--border); border-bottom:none; border-radius:10px 10px 0 0; padding:0 32px; height:72px; overflow:hidden; position:relative; }
   .preview-track { position:absolute; left:32px; right:32px; top:0; }
-  .preview-row { height:72px; display:flex; align-items:center; font-size:26px; letter-spacing:.03em; line-height:1; white-space:nowrap; overflow:hidden; }
+  .preview-row { height:72px; display:flex; align-items:center; letter-spacing:.03em; line-height:1; white-space:nowrap; overflow:hidden; }
   .preview-row.row-next { display:none; }
   .char { color:#8892b0; flex-shrink:0; }
   .char.correct { color:#ffffff; }
@@ -77,7 +77,7 @@
 
   /* 입력 표시줄 */
   .typed-display-wrap { background:var(--surface2); border:1px solid var(--border); border-top:none; border-radius:0 0 10px 10px; height:72px; position:relative; display:flex; align-items:center; padding:0 32px; overflow:hidden; cursor:text; }
-  .typed-display { font-size:26px; letter-spacing:.03em; white-space:nowrap; flex:1; display:flex; align-items:center; overflow:hidden; pointer-events:none; }
+  .typed-display { letter-spacing:.03em; white-space:nowrap; flex:1; display:flex; align-items:center; overflow:hidden; pointer-events:none; }
   .td-char { flex-shrink:0; }
   .td-char.ok  { color:#ffffff; }
   .td-char.bad { color:var(--error); }
@@ -86,7 +86,7 @@
   @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
   #typing-box {
     position:absolute; inset:0; opacity:0; border:none; outline:none;
-    font-size:26px; background:transparent; color:transparent; caret-color:transparent;
+    background:transparent; color:transparent; caret-color:transparent;
   }
 
   /* ── 고스트 미리보기 줄 ── */
@@ -107,11 +107,11 @@
   }
   .ghost-row {
     height:72px; display:flex; align-items:center;
-    font-size:26px; letter-spacing:.03em; line-height:1;
+    letter-spacing:.03em; line-height:1;
     white-space:nowrap; overflow:hidden;
   }
   .ghost-char {
-    color: rgba(136,146,176,0.28); /* 흐릿한 투명 */
+    color: rgba(136,146,176,0.28);
     flex-shrink:0;
   }
   /* 구분선 레이블 */
@@ -132,13 +132,65 @@
   .result-stat .value { font-family:'JetBrains Mono',monospace; font-size:32px; font-weight:700; margin-top:4px; }
   .result-stat .value.e   { color:var(--error); }
   .result-stat .value.acc { color:var(--success); }
+
+  /* ── 테마 피커 ── */
+  .theme-picker { display:flex; align-items:center; gap:8px; padding-right:12px; margin-right:4px; border-right:1px solid var(--border); }
+  .theme-dot { width:20px; height:20px; border-radius:50%; border:2.5px solid transparent; cursor:pointer; padding:0; transition:all .15s; outline:none; flex-shrink:0; }
+  .theme-dot:hover { transform:scale(1.22); }
+  .theme-dot.on { border-color:#fff; box-shadow:0 0 0 2px rgba(255,255,255,0.22); transform:scale(1.22); }
+  .t-blue   { background:#5b7cfa; }
+  .t-purple { background:#a855f7; }
+  .t-pink   { background:#f472b6; }
+  .t-teal   { background:#2dd4bf; }
+  .t-orange { background:#fb923c; }
+  .t-green  { background:#4ade80; }
+
+  /* ── 다크/라이트 모드 토글 ── */
+  .mode-toggle-wrap { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-muted); user-select:none; padding-right:12px; margin-right:4px; border-right:1px solid var(--border); }
+  .mode-toggle-wrap .mode-icon { font-size:14px; line-height:1; }
+  .mode-toggle { position:relative; width:40px; height:22px; flex-shrink:0; }
+  .mode-toggle input { opacity:0; width:0; height:0; }
+  .mode-slider { position:absolute; inset:0; background:var(--border); border-radius:22px; cursor:pointer; transition:.2s; }
+  .mode-slider::after { content:''; position:absolute; width:16px; height:16px; background:#fff; border-radius:50%; top:3px; left:3px; transition:.2s; }
+  .mode-toggle input:checked + .mode-slider { background:var(--accent); }
+  .mode-toggle input:checked + .mode-slider::after { transform:translateX(18px); }
+
+  /* ── 라이트 모드 전역 오버라이드 ── */
+  body.light .char         { color: var(--pending); }
+  body.light .char.correct { color: var(--text); font-weight: 600; }
+  body.light .char.error   { color: var(--error); font-weight: 600; }
+  body.light .preview-row  { font-weight: 500; }
+  body.light .td-char.ok        { color: var(--text); font-weight: 600; }
+  body.light .td-char.bad       { color: var(--error); font-weight: 600; }
+  body.light .td-char.skip-char { color: var(--text-muted); font-weight: 500; }
+  body.light .ghost-row    { font-weight: 500; }
+  body.light .theme-dot.on { border-color:#222; box-shadow:0 0 0 1.5px rgba(0,0,0,0.18); }
+  body.light .ghost-char   { color: rgba(80,90,120,0.22); }
+  body.light .ghost-label  { color: rgba(80,90,120,0.4); }
+  body.light #title-deco   { color: #222 !important; }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="header-title"><span>속기</span> 타자연습</div>
+  <div class="header-title"><span>백나</span> <span id="title-deco" style="color:#ffffff;font-weight:400;">타자₍՞ • 🐽 • ՞₎ ˚₊·—♡</span></div>
   <div class="header-actions">
+    <label class="mode-toggle-wrap" id="mode-toggle-wrap">
+      <span class="mode-icon">🌙</span>
+      <label class="mode-toggle">
+        <input type="checkbox" id="mode-switch">
+        <span class="mode-slider"></span>
+      </label>
+      <span class="mode-icon">☀️</span>
+    </label>
+    <div class="theme-picker">
+      <button class="theme-dot t-blue   on" onclick="setTheme('blue',this)"   title="블루"></button>
+      <button class="theme-dot t-purple"    onclick="setTheme('purple',this)" title="퍼플"></button>
+      <button class="theme-dot t-pink"      onclick="setTheme('pink',this)"   title="핑크"></button>
+      <button class="theme-dot t-teal"      onclick="setTheme('teal',this)"   title="틸"></button>
+      <button class="theme-dot t-orange"    onclick="setTheme('orange',this)" title="오렌지"></button>
+      <button class="theme-dot t-green"     onclick="setTheme('green',this)"  title="그린"></button>
+    </div>
     <label class="toggle-inline" id="ignore-toggle-wrap">
       <span>띄어쓰기·문장부호 무시</span>
       <label class="toggle">
@@ -147,6 +199,7 @@
       </label>
     </label>
     <input type="file" id="file-input" accept=".txt" style="display:none">
+    <div style="width:1px;height:22px;background:var(--border);margin:0 4px;flex-shrink:0;"></div>
     <button class="btn" id="btn-load">불러오기</button>
     <button class="btn btn-primary" id="btn-start" disabled>시작(F9)</button>
     <button class="btn btn-danger"  id="btn-end"   style="display:none" disabled>종료(ESC)</button>
@@ -253,6 +306,41 @@ let charResults = [], judgedCount = 0, errorCount = 0, correctCount = 0;
 let errorEver = [], timerInterval = null, startTime = null, elapsedSec = 0, running = false;
 let chunks = [], curChunk = 0;
 const CHUNK_SIZE = 28;
+
+// ── 반응형 글자 크기 ──────────────────────────────────────────────────────
+const previewContainer = document.querySelector('.preview-container');
+const MAX_FONT = 26, MIN_FONT = 10;
+
+function applyFontSize(px) {
+  const s = px + 'px';
+  rowCur.style.fontSize   = s;
+  rowNext.style.fontSize  = s;
+  ghostRow.style.fontSize = s;
+  typedDisplay.style.fontSize = s;
+  typingBox.style.fontSize    = s;
+  // 커서 높이도 비례 조정
+  const carets = typedDisplay.querySelectorAll('.td-caret');
+  carets.forEach(c => { c.style.height = Math.round(px * 1.15) + 'px'; });
+}
+
+function calcFontSize(containerWidth) {
+  // 패딩 64px(양쪽 32px) 제외한 실제 텍스트 영역
+  const avail = containerWidth - 64;
+  // 한글 1글자 ≈ 1em, letter-spacing .03em → 1.03em/char
+  const computed = Math.floor(avail / (CHUNK_SIZE * 1.08));
+  return Math.max(MIN_FONT, Math.min(MAX_FONT, computed));
+}
+
+const _ro = new ResizeObserver(entries => {
+  for (const e of entries) {
+    applyFontSize(calcFontSize(e.contentRect.width));
+  }
+});
+// typing-wrap가 active될 때도 관찰 시작, 처음엔 content 영역 기준
+const contentEl = document.querySelector('.content');
+_ro.observe(contentEl);
+// 초기 적용
+applyFontSize(calcFontSize(contentEl.getBoundingClientRect().width));
 
 function isSkip(ch) { return !ignoreToggle.checked ? false : /[^가-힣a-zA-Z0-9]/.test(ch); }
 function formatTime(s) { return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0'); }
@@ -504,7 +592,18 @@ function resetToReady() {
 }
 
 btnStart.addEventListener('click', startTest);
-btnEnd.addEventListener('click', () => { stopTest(); resetToReady(); });
+btnEnd.addEventListener('click', () => {
+  stopTest();
+  rawText = '';
+  rowCur.innerHTML = ''; rowNext.innerHTML = ''; ghostRow.innerHTML = '';
+  typedDisplay.innerHTML = ''; progressFill.style.width = '0%';
+  updateStats();
+  typingWrap.classList.remove('active'); resultWrap.classList.remove('active');
+  emptyState.style.display = '';
+  btnStart.disabled = true; btnEnd.style.display = 'none'; btnEnd.disabled = true; btnReset.disabled = true;
+  btnStart.textContent = '시작(F9)'; btnStart.className = 'btn btn-primary'; btnStart.style.display = '';
+  ignoreWrap.classList.remove('disabled'); ignoreToggle.disabled = false;
+});
 btnReset.addEventListener('click', resetToReady);
 btnRetry.addEventListener('click', resetToReady);
 document.addEventListener('keydown', e => {
@@ -545,6 +644,67 @@ function finishTest() {
 }
 
 ignoreToggle.addEventListener('change', () => { if (rawText && !running) resetToReady(); });
+
+// ── 테마 ──────────────────────────────────────────────────────────────────
+const _themes = {
+  dark: {
+    blue:   { '--bg':'#0f1117','--surface':'#1a1d27','--surface2':'#22263a','--border':'#2e3250','--accent':'#5b7cfa','--accent2':'#fa5b8a','--text':'#e8eaf6','--text-muted':'#6b7280','--error':'#ff4f6b','--success':'#34d399','--pending':'#3a3f5c' },
+    purple: { '--bg':'#0e0f1a','--surface':'#18152e','--surface2':'#201c3a','--border':'#2d2852','--accent':'#a855f7','--accent2':'#f472b6','--text':'#ede8f6','--text-muted':'#6b6880','--error':'#ff4f6b','--success':'#34d399','--pending':'#35285a' },
+    pink:   { '--bg':'#120f17','--surface':'#1e1528','--surface2':'#271832','--border':'#3a2548','--accent':'#f472b6','--accent2':'#fb923c','--text':'#f6e8f2','--text-muted':'#806278','--error':'#ff4f6b','--success':'#34d399','--pending':'#3a1832' },
+    teal:   { '--bg':'#0a1212','--surface':'#121e1e','--surface2':'#182828','--border':'#1e3838','--accent':'#2dd4bf','--accent2':'#5b7cfa','--text':'#e8f6f4','--text-muted':'#507878','--error':'#ff4f6b','--success':'#34d399','--pending':'#183030' },
+    orange: { '--bg':'#120e0a','--surface':'#1e1512','--surface2':'#281c18','--border':'#3a2820','--accent':'#fb923c','--accent2':'#f472b6','--text':'#f6ede8','--text-muted':'#80685a','--error':'#ff4f6b','--success':'#34d399','--pending':'#382018' },
+    green:  { '--bg':'#0a120c','--surface':'#121e14','--surface2':'#18281c','--border':'#1e3824','--accent':'#4ade80','--accent2':'#2dd4bf','--text':'#e8f6ea','--text-muted':'#507858','--error':'#ff4f6b','--success':'#4ade80','--pending':'#183820' }
+  },
+  light: {
+    blue:   { '--bg':'#f4f6ff','--surface':'#ffffff','--surface2':'#edf0ff','--border':'#cdd5f8','--accent':'#4263eb','--accent2':'#e83070','--text':'#1a1f3a','--text-muted':'#6b7280','--error':'#dc2626','--success':'#059669','--pending':'#c8d0f0' },
+    purple: { '--bg':'#f8f5ff','--surface':'#ffffff','--surface2':'#f1ebff','--border':'#d9c8f8','--accent':'#7c3aed','--accent2':'#db2777','--text':'#2d1a4a','--text-muted':'#7c6898','--error':'#dc2626','--success':'#059669','--pending':'#e0d8f8' },
+    pink:   { '--bg':'#fff5fa','--surface':'#ffffff','--surface2':'#ffedf6','--border':'#ffd0e8','--accent':'#db2777','--accent2':'#f97316','--text':'#3a1030','--text-muted':'#b06080','--error':'#dc2626','--success':'#059669','--pending':'#ffd0e8' },
+    teal:   { '--bg':'#f0fbf8','--surface':'#ffffff','--surface2':'#e0f8f2','--border':'#b0e0d8','--accent':'#0d9488','--accent2':'#4263eb','--text':'#0e2e28','--text-muted':'#4a9080','--error':'#dc2626','--success':'#059669','--pending':'#b8e8e0' },
+    orange: { '--bg':'#fff8f0','--surface':'#ffffff','--surface2':'#fff0e0','--border':'#ffd8b0','--accent':'#ea580c','--accent2':'#db2777','--text':'#3a1800','--text-muted':'#8a6040','--error':'#dc2626','--success':'#059669','--pending':'#ffe0c0' },
+    green:  { '--bg':'#f0fbf4','--surface':'#ffffff','--surface2':'#e0f8e8','--border':'#b0e8c0','--accent':'#16a34a','--accent2':'#0d9488','--text':'#0e2e18','--text-muted':'#4a9060','--error':'#dc2626','--success':'#16a34a','--pending':'#b8e8c8' }
+  }
+};
+
+let _isLight = false;
+let _currentColor = 'blue';
+
+const modeSwitch = document.getElementById('mode-switch');
+
+function setMode(light) {
+  _isLight = light;
+  document.body.classList.toggle('light', light);
+  modeSwitch.checked = light;
+  setThemeColor(_currentColor);
+  try { localStorage.setItem('typerMode', light ? 'light' : 'dark'); } catch(e) {}
+}
+
+function setThemeColor(name) {
+  _currentColor = name;
+  const t = _themes[_isLight ? 'light' : 'dark'][name];
+  const r = document.documentElement;
+  Object.keys(t).forEach(k => r.style.setProperty(k, t[k]));
+  document.querySelectorAll('.theme-dot').forEach(b => b.classList.remove('on'));
+  const dot = document.querySelector('.theme-dot.t-' + name);
+  if (dot) dot.classList.add('on');
+  try { localStorage.setItem('typerTheme', name); } catch(e) {}
+}
+
+// 기존 setTheme 호환 유지
+function setTheme(name, btn) { setThemeColor(name); }
+
+modeSwitch.addEventListener('change', () => setMode(modeSwitch.checked));
+
+// 저장된 설정 복원
+(function() {
+  try {
+    const savedMode  = localStorage.getItem('typerMode')  || 'dark';
+    const savedColor = localStorage.getItem('typerTheme') || 'blue';
+    _isLight = savedMode === 'light';
+    modeSwitch.checked = _isLight;
+    document.body.classList.toggle('light', _isLight);
+    setThemeColor(savedColor);
+  } catch(e) {}
+})();
 
 emptyState.style.display = '';
 typingWrap.classList.remove('active');
