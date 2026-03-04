@@ -30,8 +30,7 @@
   textarea{width:100%;height:120px;border:1.5px solid var(--theme-200);border-radius:7px;padding:9px 11px;font-family:'Malgun Gothic','맑은 고딕',sans-serif;font-size:14px;line-height:1.8;color:var(--text);resize:vertical;outline:none;transition:border-color .2s;background:#fafbfd;}
   textarea:focus{border-color:var(--theme-400);background:#fff;}
   #gradeBtn{width:100%;padding:17px 13px;background:linear-gradient(135deg,var(--theme-400),var(--theme-500));color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;font-family:'Malgun Gothic','맑은 고딕',sans-serif;cursor:pointer;letter-spacing:1px;transition:all .2s;margin-bottom:14px;box-shadow:0 3px 12px var(--theme-shadow);}
-  #gradeBtn:hover:not(:disabled){background:linear-gradient(135deg,var(--theme-500),var(--theme-600));transform:translateY(-1px);box-shadow:0 5px 18px var(--theme-shadow);}
-  #gradeBtn:disabled{background:linear-gradient(135deg,var(--theme-300),var(--theme-400));cursor:not-allowed;transform:none;box-shadow:none;opacity:0.65;pointer-events:none;}
+  #gradeBtn:hover{background:linear-gradient(135deg,var(--theme-500),var(--theme-600));transform:translateY(-1px);box-shadow:0 5px 18px var(--theme-shadow);}
   .stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
   .stat-item{flex:1;min-width:90px;background:var(--panel);border:1.5px solid var(--theme-200);border-radius:10px;padding:10px 12px;text-align:center;box-shadow:0 2px 10px var(--theme-shadow);}
   .stat-item .lbl{font-size:11px;color:var(--theme-sub);font-weight:600;margin-bottom:3px;}
@@ -457,88 +456,97 @@ function tokEq(a,b){if(a===b)return true;return _normTok(a)===_normTok(b);}
 
 function levenshteinDiff(oToks,iToks){
   const M=oToks.length,N=iToks.length;
-  const INF=M+N+1;  // 최대값 ≤ 30000 < 32767(Int16 한계) 이므로 안전
-  const dp=Array.from({length:M+1},()=>new Int16Array(N+1).fill(INF));
-  dp[0][0]=0;
-  for(let i=1;i<=M;i++)dp[i][0]=i;
-  for(let j=1;j<=N;j++)dp[0][j]=j;
+  const INF=M+N+1;
 
-  // 블록 매칭 고속화: 원문 끝 토큰 → 해당 쌍 목록 인덱스 (매 셀 전체순회 방지)
+  // 블록매칭 끝토큰 인덱스
   const _pairsByOLast=new Map();
   const _pairsByILast=new Map();
   for(const p of _SUBS_PAIRS){
-    const oLast=p.asciiToks[p.asciiToks.length-1];
-    const iLast=p.koToks[p.koToks.length-1];
-    if(!_pairsByOLast.has(oLast))_pairsByOLast.set(oLast,[]);
-    _pairsByOLast.get(oLast).push(p);
-    if(!_pairsByILast.has(iLast))_pairsByILast.set(iLast,[]);
-    _pairsByILast.get(iLast).push(p);
+    const oL=p.asciiToks[p.asciiToks.length-1];
+    const iL=p.koToks[p.koToks.length-1];
+    if(!_pairsByOLast.has(oL))_pairsByOLast.set(oL,[]);
+    _pairsByOLast.get(oL).push(p);
+    if(!_pairsByILast.has(iL))_pairsByILast.set(iL,[]);
+    _pairsByILast.get(iL).push(p);
   }
 
-  for(let i=1;i<=M;i++){
-    const oTok=oToks[i-1];
-    for(let j=1;j<=N;j++){
-      // 1. 일반 채점 (equal / replace / delete / insert)
-      const iTok=iToks[j-1];
-      if(oTok===iTok||_normTok(oTok)===_normTok(iTok))dp[i][j]=dp[i-1][j-1];
-      else dp[i][j]=1+Math.min(dp[i-1][j-1],dp[i-1][j],dp[i][j-1]);
-      // 2. 블록 매칭: 현재 위치 끝 토큰이 일치하는 쌍만 체크
-      const candidatesO=_pairsByOLast.get(oTok);
-      if(candidatesO){for(const{asciiToks,koToks}of candidatesO){
-        const aLen=asciiToks.length,kLen=koToks.length;
-        if(i<aLen||j<kLen)continue;
-        let oMatch=true;
-        for(let k=0;k<aLen;k++)if(oToks[i-aLen+k]!==asciiToks[k]){oMatch=false;break;}
-        if(!oMatch)continue;
-        let iMatch=true;
-        for(let k=0;k<kLen;k++)if(iToks[j-kLen+k]!==koToks[k]){iMatch=false;break;}
-        if(!iMatch)continue;
-        if(dp[i-aLen][j-kLen]<dp[i][j])dp[i][j]=dp[i-aLen][j-kLen];
-      }}
-      const candidatesI=_pairsByILast.get(iTok);
-      if(candidatesI){for(const{asciiToks,koToks}of candidatesI){
-        const aLen=asciiToks.length,kLen=koToks.length;
-        if(i<aLen||j<kLen)continue;
-        let oMatch=true;
-        for(let k=0;k<aLen;k++)if(oToks[i-aLen+k]!==asciiToks[k]){oMatch=false;break;}
-        if(!oMatch)continue;
-        let iMatch=true;
-        for(let k=0;k<kLen;k++)if(iToks[j-kLen+k]!==koToks[k]){iMatch=false;break;}
-        if(!iMatch)continue;
-        if(dp[i-aLen][j-kLen]<dp[i][j])dp[i][j]=dp[i-aLen][j-kLen];
-      }}
+  function runDP(k){
+    const dp=new Array(M+1);
+    for(let i=0;i<=M;i++){dp[i]=new Int16Array(N+1).fill(INF);dp[i][0]=i;}
+    for(let j=1;j<=N;j++)dp[0][j]=j;
+    for(let i=1;i<=M;i++){
+      const oTok=oToks[i-1];
+      const co=_pairsByOLast.get(oTok);
+      const jLo=Math.max(1,i-k), jHi=Math.min(N,i+k);
+      if(jLo>1)dp[i][jLo-1]=INF;
+      for(let j=jLo;j<=jHi;j++){
+        const iTok=iToks[j-1];
+        if(oTok===iTok||_normTok(oTok)===_normTok(iTok))dp[i][j]=dp[i-1][j-1];
+        else dp[i][j]=1+Math.min(dp[i-1][j-1],dp[i-1][j],dp[i][j-1]);
+        if(co){for(const{asciiToks,koToks}of co){
+          const aLen=asciiToks.length,kLen=koToks.length;
+          if(i<aLen||j<kLen)continue;
+          let om=true;for(let x=0;x<aLen;x++)if(oToks[i-aLen+x]!==asciiToks[x]){om=false;break;}
+          if(!om)continue;
+          let im=true;for(let x=0;x<kLen;x++)if(iToks[j-kLen+x]!==koToks[x]){im=false;break;}
+          if(!im)continue;
+          if(dp[i-aLen][j-kLen]<dp[i][j])dp[i][j]=dp[i-aLen][j-kLen];
+        }}
+        const ci=_pairsByILast.get(iTok);
+        if(ci){for(const{asciiToks,koToks}of ci){
+          const aLen=asciiToks.length,kLen=koToks.length;
+          if(i<aLen||j<kLen)continue;
+          let om=true;for(let x=0;x<aLen;x++)if(oToks[i-aLen+x]!==asciiToks[x]){om=false;break;}
+          if(!om)continue;
+          let im=true;for(let x=0;x<kLen;x++)if(iToks[j-kLen+x]!==koToks[x]){im=false;break;}
+          if(!im)continue;
+          if(dp[i-aLen][j-kLen]<dp[i][j])dp[i][j]=dp[i-aLen][j-kLen];
+        }}
+      }
     }
+    return dp;
   }
 
-  // 역추적: push + reverse (unshift O(N²) 방지)
+  // 밴드 폭을 늘려가며 편집거리가 밴드 안에 들어올 때까지 반복
+  let k=Math.max(32,Math.floor(Math.max(M,N)*0.02));
+  let dp;
+  while(true){
+    dp=runDP(k);
+    if(dp[M][N]<=k)break;
+    if(k>=M+N)break;
+    k=Math.min(k*2,M+N);
+  }
+
+  // 역추적: push+reverse
   const ops=[];let i=M,j=N;
   while(i>0||j>0){
-    // 블록 매칭 역추적 우선
-    let blockFound=false;
+    let bf=false;
     for(const{asciiToks,koToks}of _SUBS_PAIRS){
       const aLen=asciiToks.length,kLen=koToks.length;
       if(i<aLen||j<kLen)continue;
       if(dp[i][j]!==dp[i-aLen][j-kLen])continue;
-      let oMatch=true;
-      for(let k=0;k<aLen;k++)if(oToks[i-aLen+k]!==asciiToks[k]){oMatch=false;break;}
-      if(!oMatch)continue;
-      let iMatch=true;
-      for(let k=0;k<kLen;k++)if(iToks[j-kLen+k]!==koToks[k]){iMatch=false;break;}
-      if(!iMatch)continue;
-      ops.push({type:'blockEqual',orig:asciiToks.join(''),inp:koToks.join(''),origStartIdx:i-aLen,inpStartIdx:j-kLen,origLen:aLen,inpLen:kLen});
-      i-=aLen;j-=kLen;blockFound=true;break;
+      let om=true;for(let x=0;x<aLen;x++)if(oToks[i-aLen+x]!==asciiToks[x]){om=false;break;}
+      if(!om)continue;
+      let im=true;for(let x=0;x<kLen;x++)if(iToks[j-kLen+x]!==koToks[x]){im=false;break;}
+      if(!im)continue;
+      ops.push({type:'blockEqual',orig:asciiToks.join(''),inp:koToks.join(''),
+        origStartIdx:i-aLen,inpStartIdx:j-kLen,origLen:aLen,inpLen:kLen});
+      i-=aLen;j-=kLen;bf=true;break;
     }
-    if(blockFound)continue;
-    // 일반 역추적
-    if(i>0&&j>0&&tokEq(oToks[i-1],iToks[j-1])){ops.push({type:'equal',orig:oToks[i-1],inp:iToks[j-1],origIdx:i-1,inpIdx:j-1});i--;j--;}
-    else if(j>0&&dp[i][j]===dp[i][j-1]+1){ops.push({type:'add',orig:'',inp:iToks[j-1],origIdx:-1,inpIdx:j-1});j--;}
-    else if(i>0&&j>0&&dp[i][j]===dp[i-1][j-1]+1){ops.push({type:'wrong',orig:oToks[i-1],inp:iToks[j-1],origIdx:i-1,inpIdx:j-1});i--;j--;}
-    else{ops.push({type:'miss',orig:oToks[i-1],inp:'',origIdx:i-1,inpIdx:-1});i--;}
+    if(bf)continue;
+    if(i>0&&j>0&&(oToks[i-1]===iToks[j-1]||_normTok(oToks[i-1])===_normTok(iToks[j-1]))){
+      ops.push({type:'equal',orig:oToks[i-1],inp:iToks[j-1],origIdx:i-1,inpIdx:j-1});i--;j--;
+    } else if(j>0&&(i===0||dp[i][j]===dp[i][j-1]+1)){
+      ops.push({type:'add',orig:'',inp:iToks[j-1],origIdx:-1,inpIdx:j-1});j--;
+    } else if(i>0&&j>0&&dp[i][j]===dp[i-1][j-1]+1){
+      ops.push({type:'wrong',orig:oToks[i-1],inp:iToks[j-1],origIdx:i-1,inpIdx:j-1});i--;j--;
+    } else {
+      ops.push({type:'miss',orig:oToks[i-1],inp:'',origIdx:i-1,inpIdx:-1});i--;
+    }
   }
   ops.reverse();
   return ops;
 }
-
 function getWordBoundaries(origRaw){
   const boundaries=new Set();let charIdx=0,newWord=true;
   for(const c of origRaw){if(/\s/.test(c))newWord=true;else if(isValid(c)){if(newWord&&charIdx>0)boundaries.add(charIdx);newWord=false;charIdx++;}}
@@ -680,36 +688,12 @@ function doGrade(){
   if(origToks.length===0){alert('원문을 입력해주세요.');return;}
   const origDisplayToks=buildRawDisplayToks(origRaw);
   const inpDisplayToks=buildRawDisplayToks(inpRaw);
-  const totalChars=origToks.length;  // charCount는 항상 1이므로 length와 동일
-
-  // Web Worker로 Levenshtein 연산 — UI 블로킹 방지
-  const workerCode=_buildWorkerCode();
-  const blob=new Blob([workerCode],{type:'application/javascript'});
-  const url=URL.createObjectURL(blob);
-  const worker=new Worker(url);
-  const btn=document.getElementById('gradeBtn');
-  btn.textContent='⏳ 채점 중...'; btn.disabled=true;
-  document.getElementById('resultBox').innerHTML='<p class="empty-msg">⏳ 채점 중입니다...</p>';
-  worker.onmessage=function(e){
-    URL.revokeObjectURL(url); worker.terminate();
-    btn.textContent='채점하기'; btn.disabled=false;
-    const rawDiff=e.data;
-    const wBounds=getWordBoundaries(origRaw);
-    const diff=insertWordBoundaries(rawDiff,wBounds);
-    _finishGrade(diff,origRaw,origDisplayToks,inpDisplayToks,totalChars);
-  };
-  worker.onerror=function(e){
-    URL.revokeObjectURL(url); worker.terminate();
-    btn.textContent='채점하기'; btn.disabled=false;
-    // Worker 실패 시 메인 스레드에서 직접 실행 (fallback)
-    const rawDiff=levenshteinDiff(origToks,inpToks);
-    const wBounds=getWordBoundaries(origRaw);
-    const diff=insertWordBoundaries(rawDiff,wBounds);
-    _finishGrade(diff,origRaw,origDisplayToks,inpDisplayToks,totalChars);
-  };
-  worker.postMessage({origToks,inpToks});
+  const totalChars=origToks.length;
+  const rawDiff=levenshteinDiff(origToks,inpToks);
+  const wBounds=getWordBoundaries(origRaw);
+  const diff=insertWordBoundaries(rawDiff,wBounds);
+  _finishGrade(diff,origRaw,origDisplayToks,inpDisplayToks,totalChars);
 }
-
 function _finishGrade(diff,origRaw,origDisplayToks,inpDisplayToks,totalChars){
   let miss=0,add=0,wrong=0;
   const wrongItems=[],missGroups=[];
@@ -771,31 +755,13 @@ function _finishGrade(diff,origRaw,origDisplayToks,inpDisplayToks,totalChars){
   setGradeBtnEnabled(false);
 }
 
-// Worker에 넘길 채점 코드를 문자열로 빌드
-function _buildWorkerCode(){
-  // levenshteinDiff 및 의존 함수들을 그대로 직렬화해서 Worker에 주입
-  const fns=[
-    isValid.toString(),
-    preprocessInput.toString(),
-    tokenize.toString(),
-    charCount.toString(),
-    'const _MULTI_SUBS='+JSON.stringify(_MULTI_SUBS)+';',
-    'const _SUBS_PAIRS=(()=>{const pairs=[];for(const[ko,ascii]of _MULTI_SUBS){const asciiToks=[...ascii].filter(c=>isValid(c));const koToks=[...ko].filter(c=>isValid(c));if(asciiToks.length>0&&koToks.length>0)pairs.push({asciiToks,koToks});}return pairs;})();',
-    'const _SINGLE_NORM='+JSON.stringify(_SINGLE_NORM)+';',
-    _normTok.toString(),
-    tokEq.toString(),
-    levenshteinDiff.toString(),
-  ];
-  return fns.join('\n') + '\nself.onmessage=function(e){const{origToks,inpToks}=e.data;const result=levenshteinDiff(origToks,inpToks);self.postMessage(result);};';
-}
-
 let _lastWrongItems=[];
 function isAccumulateMode(){return document.getElementById('accumulateChk')?.checked??false;}
 let _gradeBtnLocked=false;
 function setGradeBtnEnabled(enabled){
   _gradeBtnLocked=!enabled;
   const btn=document.getElementById('gradeBtn');
-  btn.disabled=!enabled;btn.style.opacity=enabled?'':'0.65';btn.style.cursor=enabled?'':'not-allowed';btn.style.pointerEvents=enabled?'':'none';btn.style.transform=enabled?'':'none';
+  btn.disabled=!enabled;btn.style.opacity=enabled?'':'0.45';btn.style.cursor=enabled?'':'not-allowed';
 }
 document.addEventListener('DOMContentLoaded',()=>{['originalText','inputText'].forEach(id=>{document.getElementById(id).addEventListener('input',()=>{if(_gradeBtnLocked)setGradeBtnEnabled(true);});});});
 
