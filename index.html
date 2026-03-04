@@ -418,13 +418,14 @@ function showTab(name,btn){
   if(tabsEl)tabsEl.style.borderBottomColor=style.getPropertyValue('--theme-200').trim();
 }
 
-function isValid(c){const code=c.charCodeAt(0);return(code>=0xAC00&&code<=0xD7A3)||(code>=0x3131&&code<=0x318E)||/[a-zA-Z0-9%$&~]/.test(c);}
+function isValid(c){const code=c.charCodeAt(0);return(code>=0xAC00&&code<=0xD7A3)||(code>=0x3131&&code<=0x318E)||/[a-zA-Z0-9%$&~]/.test(c)||'㏊㎎㎏㎝㎖'.includes(c);}
 
 const _MULTI_SUBS=[
   ['엠지세대','MZ세대'],['센티미터','cm'],['킬로그램','kg'],['킬로미터','km'],['밀리리터','mL'],['밀리그램','mg'],['밀리미터','mm'],
   ['에이치','H'],['더블유','W'],['퍼센트','%'],['에이펙','APEC'],
   ['달러','$'],['에서','~'],['브이','V'],['제이','J'],['케이','K'],['아이','I'],['제트','Z'],['에프','F'],['에스','S'],['엑스','X'],['와이','Y'],['에이','A'],
-  ['앤','&'],['유엔','UN'],['이유','EU'],['티비','TV'],['팝','POP'],
+  ['앤','&'],['팝','POP'],['나토','NATO'],
+  ['헥타르','ha'],['헥타르','㏊'],['밀리그램','㎎'],['킬로그램','㎏'],['센티미터','㎝'],['밀리리터','㎖'],
 ];
 function preprocessInput(str){let s=str;for(const[ko,ascii]of _MULTI_SUBS)s=s.split(ko).join(ascii);return s;}
 function tokenize(str){const tokens=[];for(const c of str)if(isValid(c))tokens.push(c);return tokens;}
