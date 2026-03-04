@@ -456,18 +456,34 @@ function tokEq(a,b){if(a===b)return true;return _normTok(a)===_normTok(b);}
 
 function levenshteinDiff(oToks,iToks){
   const M=oToks.length,N=iToks.length;
-  const INF=M+N+1;
-  const dp=Array.from({length:M+1},()=>new Float64Array(N+1).fill(INF));
+  const INF=M+N+1;  // 최대값 ≤ 30000 < 32767(Int16 한계) 이므로 안전
+  const dp=Array.from({length:M+1},()=>new Int16Array(N+1).fill(INF));
   dp[0][0]=0;
   for(let i=1;i<=M;i++)dp[i][0]=i;
   for(let j=1;j<=N;j++)dp[0][j]=j;
+
+  // 블록 매칭 고속화: 원문 끝 토큰 → 해당 쌍 목록 인덱스 (매 셀 전체순회 방지)
+  const _pairsByOLast=new Map();
+  const _pairsByILast=new Map();
+  for(const p of _SUBS_PAIRS){
+    const oLast=p.asciiToks[p.asciiToks.length-1];
+    const iLast=p.koToks[p.koToks.length-1];
+    if(!_pairsByOLast.has(oLast))_pairsByOLast.set(oLast,[]);
+    _pairsByOLast.get(oLast).push(p);
+    if(!_pairsByILast.has(iLast))_pairsByILast.set(iLast,[]);
+    _pairsByILast.get(iLast).push(p);
+  }
+
   for(let i=1;i<=M;i++){
+    const oTok=oToks[i-1];
     for(let j=1;j<=N;j++){
       // 1. 일반 채점 (equal / replace / delete / insert)
-      if(tokEq(oToks[i-1],iToks[j-1]))dp[i][j]=dp[i-1][j-1];
+      const iTok=iToks[j-1];
+      if(oTok===iTok||_normTok(oTok)===_normTok(iTok))dp[i][j]=dp[i-1][j-1];
       else dp[i][j]=1+Math.min(dp[i-1][j-1],dp[i-1][j],dp[i][j-1]);
-      // 2. 블록 매칭: 원문 ascii 시퀀스 ↔ 번문 한글 시퀀스 → 비용 0 (equal)
-      for(const{asciiToks,koToks}of _SUBS_PAIRS){
+      // 2. 블록 매칭: 현재 위치 끝 토큰이 일치하는 쌍만 체크
+      const candidatesO=_pairsByOLast.get(oTok);
+      if(candidatesO){for(const{asciiToks,koToks}of candidatesO){
         const aLen=asciiToks.length,kLen=koToks.length;
         if(i<aLen||j<kLen)continue;
         let oMatch=true;
@@ -477,9 +493,23 @@ function levenshteinDiff(oToks,iToks){
         for(let k=0;k<kLen;k++)if(iToks[j-kLen+k]!==koToks[k]){iMatch=false;break;}
         if(!iMatch)continue;
         if(dp[i-aLen][j-kLen]<dp[i][j])dp[i][j]=dp[i-aLen][j-kLen];
-      }
+      }}
+      const candidatesI=_pairsByILast.get(iTok);
+      if(candidatesI){for(const{asciiToks,koToks}of candidatesI){
+        const aLen=asciiToks.length,kLen=koToks.length;
+        if(i<aLen||j<kLen)continue;
+        let oMatch=true;
+        for(let k=0;k<aLen;k++)if(oToks[i-aLen+k]!==asciiToks[k]){oMatch=false;break;}
+        if(!oMatch)continue;
+        let iMatch=true;
+        for(let k=0;k<kLen;k++)if(iToks[j-kLen+k]!==koToks[k]){iMatch=false;break;}
+        if(!iMatch)continue;
+        if(dp[i-aLen][j-kLen]<dp[i][j])dp[i][j]=dp[i-aLen][j-kLen];
+      }}
     }
   }
+
+  // 역추적: push + reverse (unshift O(N²) 방지)
   const ops=[];let i=M,j=N;
   while(i>0||j>0){
     // 블록 매칭 역추적 우선
@@ -494,16 +524,17 @@ function levenshteinDiff(oToks,iToks){
       let iMatch=true;
       for(let k=0;k<kLen;k++)if(iToks[j-kLen+k]!==koToks[k]){iMatch=false;break;}
       if(!iMatch)continue;
-      ops.unshift({type:'blockEqual',orig:asciiToks.join(''),inp:koToks.join(''),origStartIdx:i-aLen,inpStartIdx:j-kLen,origLen:aLen,inpLen:kLen});
+      ops.push({type:'blockEqual',orig:asciiToks.join(''),inp:koToks.join(''),origStartIdx:i-aLen,inpStartIdx:j-kLen,origLen:aLen,inpLen:kLen});
       i-=aLen;j-=kLen;blockFound=true;break;
     }
     if(blockFound)continue;
     // 일반 역추적
-    if(i>0&&j>0&&tokEq(oToks[i-1],iToks[j-1])){ops.unshift({type:'equal',orig:oToks[i-1],inp:iToks[j-1],origIdx:i-1,inpIdx:j-1});i--;j--;}
-    else if(j>0&&dp[i][j]===dp[i][j-1]+1){ops.unshift({type:'add',orig:'',inp:iToks[j-1],origIdx:-1,inpIdx:j-1});j--;}
-    else if(i>0&&j>0&&dp[i][j]===dp[i-1][j-1]+1){ops.unshift({type:'wrong',orig:oToks[i-1],inp:iToks[j-1],origIdx:i-1,inpIdx:j-1});i--;j--;}
-    else{ops.unshift({type:'miss',orig:oToks[i-1],inp:'',origIdx:i-1,inpIdx:-1});i--;}
+    if(i>0&&j>0&&tokEq(oToks[i-1],iToks[j-1])){ops.push({type:'equal',orig:oToks[i-1],inp:iToks[j-1],origIdx:i-1,inpIdx:j-1});i--;j--;}
+    else if(j>0&&dp[i][j]===dp[i][j-1]+1){ops.push({type:'add',orig:'',inp:iToks[j-1],origIdx:-1,inpIdx:j-1});j--;}
+    else if(i>0&&j>0&&dp[i][j]===dp[i-1][j-1]+1){ops.push({type:'wrong',orig:oToks[i-1],inp:iToks[j-1],origIdx:i-1,inpIdx:j-1});i--;j--;}
+    else{ops.push({type:'miss',orig:oToks[i-1],inp:'',origIdx:i-1,inpIdx:-1});i--;}
   }
+  ops.reverse();
   return ops;
 }
 
@@ -648,10 +679,37 @@ function doGrade(){
   if(origToks.length===0){alert('원문을 입력해주세요.');return;}
   const origDisplayToks=buildRawDisplayToks(origRaw);
   const inpDisplayToks=buildRawDisplayToks(inpRaw);
-  const totalChars=tokenize(origRaw).reduce((s,t)=>s+charCount(t),0);
-  const rawDiff=levenshteinDiff(origToks,inpToks);
-  const wBounds=getWordBoundaries(origRaw);
-  const diff=insertWordBoundaries(rawDiff,wBounds);
+  const totalChars=origToks.length;  // charCount는 항상 1이므로 length와 동일
+
+  // Web Worker로 Levenshtein 연산 — UI 블로킹 방지
+  const workerCode=_buildWorkerCode();
+  const blob=new Blob([workerCode],{type:'application/javascript'});
+  const url=URL.createObjectURL(blob);
+  const worker=new Worker(url);
+  const btn=document.getElementById('gradeBtn');
+  btn.textContent='⏳ 채점 중...'; btn.disabled=true;
+  document.getElementById('resultBox').innerHTML='<p class="empty-msg">⏳ 채점 중입니다...</p>';
+  worker.onmessage=function(e){
+    URL.revokeObjectURL(url); worker.terminate();
+    btn.textContent='채점하기'; btn.disabled=false;
+    const rawDiff=e.data;
+    const wBounds=getWordBoundaries(origRaw);
+    const diff=insertWordBoundaries(rawDiff,wBounds);
+    _finishGrade(diff,origRaw,origDisplayToks,inpDisplayToks,totalChars);
+  };
+  worker.onerror=function(e){
+    URL.revokeObjectURL(url); worker.terminate();
+    btn.textContent='채점하기'; btn.disabled=false;
+    // Worker 실패 시 메인 스레드에서 직접 실행 (fallback)
+    const rawDiff=levenshteinDiff(origToks,inpToks);
+    const wBounds=getWordBoundaries(origRaw);
+    const diff=insertWordBoundaries(rawDiff,wBounds);
+    _finishGrade(diff,origRaw,origDisplayToks,inpDisplayToks,totalChars);
+  };
+  worker.postMessage({origToks,inpToks});
+}
+
+function _finishGrade(diff,origRaw,origDisplayToks,inpDisplayToks,totalChars){
   let miss=0,add=0,wrong=0;
   const wrongItems=[],missGroups=[];
   let origCharIdx=0;
@@ -710,6 +768,24 @@ function doGrade(){
   const lockChk=document.getElementById('tabLockChk');
   if(!lockChk||!lockChk.checked){const resultBtn=document.querySelector('.tab-btn[onclick*="result"]');if(resultBtn)showTab('result',resultBtn);}
   setGradeBtnEnabled(false);
+}
+
+// Worker에 넘길 채점 코드를 문자열로 빌드
+function _buildWorkerCode(){
+  // levenshteinDiff 및 의존 함수들을 그대로 직렬화해서 Worker에 주입
+  const fns=[
+    isValid.toString(),
+    preprocessInput.toString(),
+    tokenize.toString(),
+    charCount.toString(),
+    'const _MULTI_SUBS='+JSON.stringify(_MULTI_SUBS)+';',
+    'const _SUBS_PAIRS=(()=>{const pairs=[];for(const[ko,ascii]of _MULTI_SUBS){const asciiToks=[...ascii].filter(c=>isValid(c));const koToks=[...ko].filter(c=>isValid(c));if(asciiToks.length>0&&koToks.length>0)pairs.push({asciiToks,koToks});}return pairs;})();',
+    'const _SINGLE_NORM='+JSON.stringify(_SINGLE_NORM)+';',
+    _normTok.toString(),
+    tokEq.toString(),
+    levenshteinDiff.toString(),
+  ];
+  return fns.join('\n') + '\nself.onmessage=function(e){const{origToks,inpToks}=e.data;const result=levenshteinDiff(origToks,inpToks);self.postMessage(result);};';
 }
 
 let _lastWrongItems=[];
