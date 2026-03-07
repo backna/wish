@@ -347,7 +347,7 @@ function formatTime(s) { return String(Math.floor(s/60)).padStart(2,'0')+':'+Str
 function getSpeed() { return Math.round(correctCount / (elapsedSec/60 || 0.001)); }
 function getAccuracy() {
   const t = nonSkipChars.length;
-  return t === 0 ? 100 : Math.round((t - errorCount) / t * 100);
+  return t === 0 ? '100.00' : ((t - errorCount) / t * 100).toFixed(2);
 }
 
 function buildChars(text) {
@@ -482,6 +482,24 @@ function updateStats() {
 
 let composing = false;
 
+// ── 버그 수정: 창 전환 시 IME 오염 방지 ────────────────────────────────────
+// 문제 원인:
+//   1) 다른 창에 갔다오면 blur → rAF 재포커싱 발생
+//   2) 재포커싱 순간 브라우저가 IME 상태를 리셋하며
+//      compositionend가 이전 조합 데이터로 발생하거나,
+//      composing=false 상태에서 input 이벤트가 잘못 실행됨
+//   3) recompute()의 charResults.fill(null) 전체 재채점 구조 때문에
+//      value가 조금이라도 오염되면 멀쩡한 글자들이 전부 오자로 판정됨
+//
+// 해결책:
+//   A) 검증된 입력값(lastSafeValue)을 스냅샷으로 유지
+//   B) blur 발생 시 typingBox.value를 lastSafeValue로 복원 후 재포커싱
+//   C) compositionstart 시 그 시점의 value를 beforeCompositionValue로 저장,
+//      compositionend 후 value 길이가 비정상(줄어듦)이면 beforeCompositionValue로 복원
+//   D) document.visibilitychange 감지로 탭 전환 시 composing 상태 강제 리셋
+let lastSafeValue       = '';   // 마지막으로 정상 채점된 value 스냅샷
+let beforeCompositionValue = ''; // compositionstart 직전 value
+
 function recompute() {
   if (!running) return;
   const typed = [...typingBox.value];
@@ -501,6 +519,8 @@ function recompute() {
   }
   judgedCount = ni;
   correctCount = newCorrect;
+  // 정상 채점 완료 → 스냅샷 갱신
+  lastSafeValue = typingBox.value;
   renderPreview();
   updateStats();
   updateTypedDisplay();
@@ -534,15 +554,45 @@ function updateTypedDisplay() {
   typedDisplay.innerHTML = html;
 }
 
-typingBox.addEventListener('compositionstart', () => { composing = true; });
-typingBox.addEventListener('compositionend',   () => { composing = false; recompute(); });
+// compositionstart: 조합 시작 직전 value 저장
+typingBox.addEventListener('compositionstart', () => {
+  composing = true;
+  beforeCompositionValue = typingBox.value;
+});
+
+// compositionend: 조합 완료
+// 창 전환 등으로 인해 value가 beforeCompositionValue보다 짧아진 경우
+// (IME가 강제로 조합을 취소해 글자가 날아간 경우) → 복원 후 채점
+typingBox.addEventListener('compositionend', () => {
+  composing = false;
+  // IME 리셋으로 value가 비정상적으로 줄었을 때 복원
+  if (typingBox.value.length < beforeCompositionValue.length) {
+    typingBox.value = beforeCompositionValue;
+  }
+  recompute();
+});
+
 typingBox.addEventListener('keydown', e => {
   if (!running) return;
   if (e.key === 'Enter') { e.preventDefault(); return; }
   if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(e.key)) { e.preventDefault(); return; }
 });
 typingBox.addEventListener('input', () => { if (!running || composing) return; recompute(); moveCursorToEnd(); });
-typingBox.addEventListener('blur',  () => { if (running) requestAnimationFrame(() => { typingBox.focus(); moveCursorToEnd(); }); });
+
+// blur: 재포커싱 전 value를 lastSafeValue로 복원
+// → 창 전환으로 IME가 value를 오염시켜도 원상복구
+typingBox.addEventListener('blur', () => {
+  if (!running) return;
+  // IME 조합 중이었다면 beforeCompositionValue로 복원, 아니면 lastSafeValue로 복원
+  const safeVal = composing ? beforeCompositionValue : lastSafeValue;
+  composing = false; // blur 시 IME 상태도 강제 리셋
+  requestAnimationFrame(() => {
+    typingBox.value = safeVal;
+    typingBox.focus();
+    moveCursorToEnd();
+  });
+});
+
 typedWrap.addEventListener('click', () => { if (running) { typingBox.focus(); moveCursorToEnd(); } });
 
 function moveCursorToEnd() {
@@ -559,6 +609,20 @@ typingBox.addEventListener('keyup', e => {
 });
 // 포커스 시 항상 커서를 끝으로
 typingBox.addEventListener('focus', () => { if (running) setTimeout(moveCursorToEnd, 0); });
+
+// 탭/창 전환 감지: 숨겨지는 순간 composing 상태를 안전하게 리셋
+// → 돌아왔을 때 blur 핸들러가 이미 value를 복원했으므로 재채점 불필요
+document.addEventListener('visibilitychange', () => {
+  if (!running) return;
+  if (document.hidden) {
+    // 탭이 숨겨질 때 IME 조합 중이었다면 beforeCompositionValue 기준으로 value 고정
+    if (composing) {
+      typingBox.value = beforeCompositionValue;
+      composing = false;
+      lastSafeValue = beforeCompositionValue;
+    }
+  }
+});
 
 btnLoad.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', ev => {
@@ -580,6 +644,7 @@ function loadText(text) { rawText = text.replace(/[\r\n]+/g, ' ').trim(); resetT
 function resetToReady() {
   stopTimer(); running = false; errorCount = 0; correctCount = 0;
   errorEver = []; composing = false; elapsedSec = 0; curChunk = 0;
+  lastSafeValue = ''; beforeCompositionValue = '';
   previewTrack.style.transition = 'none'; previewTrack.style.transform = 'translateY(0)';
   ghostTrack.style.transition = 'none'; ghostTrack.style.transform = 'translateY(0)';
   buildChars(rawText); updateStats();
@@ -617,6 +682,8 @@ function startTest() {
   errorCount = 0; correctCount = 0;
   charResults = new Array(nonSkipChars.length).fill(null);
   errorEver   = new Array(nonSkipChars.length).fill(false);
+  lastSafeValue = '';
+  beforeCompositionValue = '';
   previewTrack.style.transition = 'none'; previewTrack.style.transform = 'translateY(0)';
   ghostTrack.style.transition   = 'none'; ghostTrack.style.transform   = 'translateY(0)';
   typingBox.value = ''; typedDisplay.innerHTML = '';
