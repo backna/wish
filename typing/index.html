@@ -509,12 +509,10 @@ let composing = false;
 //  3) compositionend value 감소 방어:
 //     예외 경로로 value 가 줄었을 때 lastSafeValue 로 복원.
 // ════════════════════════════════════════════════════════════════════
-let lastSafeValue = '';       // 마지막 정상 채점 완료 value 스냅샷
-let isSafeToRecompute = true; // blur 직후 채점 잠금 플래그
+let lastSafeValue = ''; // 마지막 정상 채점 완료 value 스냅샷
 
 function recompute() {
   if (!running) return;
-  if (!isSafeToRecompute) return; // blur 복원 진행 중 — 오염된 value 로 채점 차단
   const typed = [...typingBox.value];
   let ni = 0;
   charResults.fill(null);
@@ -566,54 +564,105 @@ function updateTypedDisplay() {
 }
 
 // ── IME 이벤트 ──────────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════
+//  IME / 포커스 이벤트 처리
+//  ──────────────────────────────────────────────────────────────────
+//  [기존 코드의 남은 버그 원인 분석]
+//
+//  버그 1: blur 핸들러 안에서 typingBox.focus() 를 호출하면
+//    → 새 focus 이벤트 → 브라우저에 따라 즉시 또 blur 발생
+//    → isSafeToRecompute 가 다시 false 로 잠김
+//    → 이후 모든 타이핑이 채점 차단 상태에 갇힘
+//    → "일정 시간 후 타이핑하면 전부 오자" 현상의 진짜 원인
+//
+//  버그 2: visibilitychange(복귀) 에서 recompute() 를 직접 호출하면
+//    → 그 직후 blur 가 발생해 타이밍 충돌
+//    → blur 핸들러가 isSafeToRecompute=false 로 다시 잠금
+//    → 이후 타이핑 전부 차단
+//
+//  [해결 전략]
+//  ① blur 핸들러에서 focus() 를 절대 호출하지 않는다.
+//    대신 window 레벨 pointerdown/keydown 에서 포커스를 유지한다.
+//    (재포커싱을 blur 핸들러 밖에서 처리 → 재귀 blur 원천 차단)
+//  ② visibilitychange(복귀) 에서 recompute() 를 직접 호출하지 않는다.
+//    value 만 복원하고 isSafeToRecompute 를 true 로 열어 두면
+//    사용자가 다음 키를 치는 순간 input 이벤트가 정상 채점한다.
+//  ③ blur 자체는 value 스냅샷 복원만 하고 잠금을 즉시 해제한다.
+//    (잠금을 rAF 까지 유지하면 그 사이 compositionend 가 통과하는
+//     또 다른 레이스가 생기므로, 동기적으로 복원 후 즉시 해제)
+// ════════════════════════════════════════════════════════════════════
+
 typingBox.addEventListener('compositionstart', () => {
   composing = true;
 });
 
 typingBox.addEventListener('compositionend', () => {
   composing = false;
-  // 예외 경로: IME가 value를 줄였을 때 lastSafeValue로 복원
+  // IME 가 value 를 강제로 줄인 경우(창 전환 등) 스냅샷으로 복원
   if (typingBox.value.length < lastSafeValue.length) {
     typingBox.value = lastSafeValue;
   }
-  // isSafeToRecompute가 true일 때만 채점 (blur 복원 중이면 차단됨)
   recompute();
 });
 
 typingBox.addEventListener('keydown', e => {
   if (!running) return;
   if (e.key === 'Enter') { e.preventDefault(); return; }
-  if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(e.key)) { e.preventDefault(); return; }
+  if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(e.key)) {
+    e.preventDefault(); return;
+  }
 });
-typingBox.addEventListener('input', () => { if (!running || composing) return; recompute(); moveCursorToEnd(); });
 
-// ── blur: value 잠금 → 복원 → 재채점 ────────────────────────────────────────
-// blur 발생 즉시 isSafeToRecompute=false 로 잠가
-// compositionend/input 이 rAF 이전에 발동해도 오염된 value 로 채점하지 않도록 차단
-// 복원 완료 후 잠금 해제 + 재채점
+typingBox.addEventListener('input', () => {
+  if (!running || composing) return;
+  recompute();
+  moveCursorToEnd();
+});
+
+// ── blur: value 복원만 하고 즉시 잠금 해제 ──────────────────────────────────
+// focus() 를 blur 핸들러 안에서 호출하면 재귀 blur 가 발생한다.
+// 대신 window 의 pointerdown/keydown 에서 포커스를 복구한다.
 typingBox.addEventListener('blur', () => {
   if (!running) return;
-  isSafeToRecompute = false; // 즉시 잠금
   composing = false;
-  const safeVal = lastSafeValue;
-  requestAnimationFrame(() => {
-    typingBox.value = safeVal;
-    typingBox.focus();
-    moveCursorToEnd();
-    isSafeToRecompute = true; // 복원 완료 → 잠금 해제
-    recompute();              // 복원된 value 로 정상 재채점
-  });
+  // 동기적으로 value 를 스냅샷으로 복원 (rAF 없이 즉시)
+  // → 이후 compositionend 등이 와도 이미 안전한 value
+  typingBox.value = lastSafeValue;
+  // 잠금은 사용하지 않음 (잠금 자체가 레이스 원인이었음)
+  // value 를 이미 복원했으므로 어떤 이벤트가 와도 lastSafeValue 로 채점됨
 });
 
-typedWrap.addEventListener('click', () => { if (running) { typingBox.focus(); moveCursorToEnd(); } });
+typedWrap.addEventListener('click', () => {
+  if (running) { typingBox.focus(); moveCursorToEnd(); }
+});
+
+// ── 포커스 유지: blur 핸들러 바깥에서 재포커싱 ───────────────────────────────
+// window 레벨 pointerdown/keydown 에서 포커스가 typingBox 에 없으면 복원.
+// blur 핸들러 내부에서 focus() 를 호출하지 않으므로 재귀 blur 없음.
+window.addEventListener('pointerdown', () => {
+  if (running && document.activeElement !== typingBox) {
+    typingBox.focus();
+    moveCursorToEnd();
+  }
+}, true); // capture 단계 — 어느 요소를 클릭해도 먼저 실행됨
+
+window.addEventListener('keydown', e => {
+  if (!running) return;
+  // 단축키(F9, Escape) 는 별도 처리되므로 일반 키 입력 시에만 포커스 복원
+  if (e.key === 'F9' || e.key === 'Escape') return;
+  if (document.activeElement !== typingBox) {
+    typingBox.focus();
+    moveCursorToEnd();
+  }
+}, true);
 
 function moveCursorToEnd() {
   const len = typingBox.value.length;
   typingBox.setSelectionRange(len, len);
 }
 
-// 커서가 끝이 아닌 위치로 이동하는 것을 차단
-typingBox.addEventListener('select', () => { if (running) moveCursorToEnd(); });
+// 커서 위치 고정
+typingBox.addEventListener('select',  () => { if (running) moveCursorToEnd(); });
 typingBox.addEventListener('mouseup', () => { if (running) moveCursorToEnd(); });
 typingBox.addEventListener('keyup', e => {
   if (!running) return;
@@ -621,22 +670,17 @@ typingBox.addEventListener('keyup', e => {
 });
 typingBox.addEventListener('focus', () => { if (running) setTimeout(moveCursorToEnd, 0); });
 
-// ── visibilitychange: 탭 숨김 시 선제적으로 value 고정 ───────────────────────
-// blur 보다 먼저 실행됨. 여기서 value 를 lastSafeValue 로 고정해 두면
-// 이후 blur 핸들러가 동일한 값을 복원하므로 실질적으로 무해.
+// ── visibilitychange ──────────────────────────────────────────────────────────
+// 탭이 숨겨질 때: value 를 안전한 스냅샷으로 즉시 고정 + composing 리셋
+// 탭이 복귀할 때: 아무것도 하지 않음 (다음 키 입력 시 input 이벤트가 처리)
 document.addEventListener('visibilitychange', () => {
   if (!running) return;
   if (document.hidden) {
-    isSafeToRecompute = false; // 전환 중 어떤 이벤트도 채점하지 않도록 잠금
     composing = false;
-    typingBox.value = lastSafeValue; // value 를 안전한 스냅샷으로 즉시 고정
-  } else {
-    // 탭이 다시 보임: 이미 blur→focus 사이클이 value를 복원했으므로 잠금만 해제
-    isSafeToRecompute = true;
-    recompute();
+    typingBox.value = lastSafeValue; // 오염 전에 선제적으로 고정
   }
+  // 복귀 시 recompute() 호출 제거 — blur 와 타이밍 충돌 원천 차단
 });
-
 
 btnLoad.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', ev => {
@@ -658,7 +702,7 @@ function loadText(text) { rawText = text.replace(/[\r\n]+/g, ' ').trim(); resetT
 function resetToReady() {
   stopTimer(); running = false; errorCount = 0; correctCount = 0;
   errorEver = []; composing = false; elapsedSec = 0; curChunk = 0;
-  lastSafeValue = ''; isSafeToRecompute = true;
+  lastSafeValue = '';
   previewTrack.style.transition = 'none'; previewTrack.style.transform = 'translateY(0)';
   ghostTrack.style.transition = 'none'; ghostTrack.style.transform = 'translateY(0)';
   buildChars(rawText); updateStats();
@@ -696,7 +740,7 @@ function startTest() {
   errorCount = 0; correctCount = 0;
   charResults = new Array(nonSkipChars.length).fill(null);
   errorEver   = new Array(nonSkipChars.length).fill(false);
-  lastSafeValue = ''; isSafeToRecompute = true;
+  lastSafeValue = '';
   previewTrack.style.transition = 'none'; previewTrack.style.transform = 'translateY(0)';
   ghostTrack.style.transition   = 'none'; ghostTrack.style.transform   = 'translateY(0)';
   typingBox.value = ''; typedDisplay.innerHTML = '';
