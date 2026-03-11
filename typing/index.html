@@ -344,7 +344,7 @@ applyFontSize(calcFontSize(contentEl.getBoundingClientRect().width));
 
 function isSkip(ch) {
   if (!ignoreToggle.checked) return false;
-  if (ch === '%' || ch === '.') return false; // 항상 채점 대상
+  if (ch === '%') return false; // 항상 채점 대상
   return /[^가-힣a-zA-Z0-9]/.test(ch);
 }
 function formatTime(s) { return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0'); }
