@@ -342,7 +342,12 @@ _ro.observe(contentEl);
 // 초기 적용
 applyFontSize(calcFontSize(contentEl.getBoundingClientRect().width));
 
-function isSkip(ch) { return !ignoreToggle.checked ? false : /[^가-힣a-zA-Z0-9]/.test(ch); }
+// 무시 모드에서도 %(퍼센트)와 .(마침표)는 채점 대상으로 남김
+function isSkip(ch) {
+  if (!ignoreToggle.checked) return false;
+  if (ch === '%' || ch === '.') return false; // 항상 채점
+  return /[^가-힣a-zA-Z0-9]/.test(ch);
+}
 function formatTime(s) { return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0'); }
 function getSpeed() { return Math.round(correctCount / (elapsedSec/60 || 0.001)); }
 function getAccuracy() {
@@ -545,7 +550,7 @@ function updateTypedDisplay() {
   for (let ai = c.allStart; ai < c.allEnd; ai++) {
     const o = allChars[ai];
     const disp = o.char === ' ' ? '&nbsp;' : o.char;
-    if (o.skip) {
+    if (o.skip && isSkip(o.char)) {
       html += `<span class="td-char skip-char">${disp}</span>`;
     } else {
       const typedCh = typedNonSkip[nsi];
@@ -610,6 +615,42 @@ typingBox.addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); return; }
   if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(e.key)) {
     e.preventDefault(); return;
+  }
+
+  // ── 스마트 Backspace (무시 모드 전용) ────────────────────────────────
+  // 무시 모드에서 Backspace 1번 = "non-skip 글자 1개 + 그 뒤에 붙은 skip 글자들" 삭제
+  // 예) 입력값이 "가나 다" 일 때 → "가나" 가 아니라 "가나" 로 바로 이동
+  //     "가나, " 일 때 → "가나" (쉼표·공백 묶음 통째로 제거)
+  if (e.key === 'Backspace' && ignoreToggle.checked) {
+    e.preventDefault();
+    const val = typingBox.value;
+    if (!val) return;
+
+    // val 끝에서부터 거슬러 올라가며:
+    //   1) 맨 끝 skip 글자들(공백·무시 부호) 을 먼저 제거
+    //   2) 그다음 non-skip 글자 1개 제거
+    //   3) 그 non-skip 글자 앞에 있는 skip 글자들도 함께 제거
+    //      → 단, 앞 skip 들은 "직전 non-skip 뒤" 에 속하므로
+    //        다음 백스페이스 때 처리되도록 남겨 둠 (자연스러운 느낌)
+    // 결론: "뒤쪽 skip들 + non-skip 1개" 를 한 번에 삭제
+
+    let i = val.length - 1;
+
+    // step1: 끝의 skip 글자들 건너뜀
+    while (i >= 0 && isSkip(val[i])) i--;
+
+    // step2: non-skip 글자 1개 제거 대상 위치
+    if (i < 0) {
+      // 전부 skip 글자들뿐 → 그냥 전부 지움
+      typingBox.value = '';
+    } else {
+      // i 위치의 non-skip 글자까지 포함해서 잘라냄
+      typingBox.value = val.slice(0, i);
+    }
+
+    recompute();
+    moveCursorToEnd();
+    return;
   }
 });
 
