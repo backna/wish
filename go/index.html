@@ -459,7 +459,7 @@ body {
 .theme-btn.t-orange.on  { background: linear-gradient(135deg,#ffb070,#f07828); color:#fff; box-shadow:0 3px 12px rgba(240,120,40,0.40); transform:translateY(-1px); }
 .theme-btn.t-mint.on    { background: linear-gradient(135deg,#7adfc8,#50b8a0); color:#fff; box-shadow:0 3px 12px rgba(80,184,160,0.40); transform:translateY(-1px); }
 .theme-btn.t-skyblue.on { background: linear-gradient(135deg,#60d0f0,#2898c8); color:#fff; box-shadow:0 3px 12px rgba(40,152,200,0.40); transform:translateY(-1px); }
-.theme-btn.t-gray.on    { background: linear-gradient(135deg,#b0b0b0,#777);    color:#fff; box-shadow:0 3px 12px rgba(120,120,120,0.40); transform:translateY(-1px); }
+.theme-btn.t-gray.on    { background: linear-gradient(135deg,#666,#333);    color:#fff; box-shadow:0 3px 12px rgba(0,0,0,0.35); transform:translateY(-1px); }
 
 .theme-btn.on .dot { background: rgba(255,255,255,0.9) !important; }
 
@@ -1003,13 +1003,13 @@ var _themes = {
     body:'linear-gradient(135deg,#f0f9fe 0%,#ddf0fc 50%,#c8e8fa 100%)'
   },
   gray: {
-    '--pink-50':'#f5f5f5','--pink-100':'#ebebeb','--pink-200':'#d8d8d8',
-    '--pink-300':'#bbb','--pink-400':'#9a9a9a','--pink-500':'#777','--pink-600':'#555',
-    '--rose-50':'#f7f7f7','--text':'#222','--sub':'#888','--border':'#ddd',
-    '--overlay-bg':'rgba(100,100,100,0.10)',
-    '--overlay-text-bg':'rgba(100,100,100,0.42)',
-    '--popup-shadow-color':'rgba(100,100,100,0.28)',
-    body:'linear-gradient(135deg,#f5f5f5 0%,#eeeeee 50%,#e5e5e5 100%)'
+    '--pink-50':'#e8e8e8','--pink-100':'#d8d8d8','--pink-200':'#b8b8b8',
+    '--pink-300':'#888888','--pink-400':'#505050','--pink-500':'#282828','--pink-600':'#101010',
+    '--rose-50':'#ebebeb','--text':'#0a0a0a','--sub':'#555','--border':'#b0b0b0',
+    '--overlay-bg':'rgba(0,0,0,0.12)',
+    '--overlay-text-bg':'rgba(0,0,0,0.50)',
+    '--popup-shadow-color':'rgba(0,0,0,0.35)',
+    body:'linear-gradient(135deg,#d8d8d8 0%,#cccccc 50%,#c0c0c0 100%)'
   }
 };
 
@@ -1026,12 +1026,12 @@ function setTheme(name, btn) {
 
   // 연논랜덤세팅 버튼 색 - 테마별 채도 높은 포인트 색
   var randomColors = {
-    pink:    { from:'#ff80c8', to:'#f040a8', shadow:'rgba(255,128,200,0.42)' },
+    pink:    { from:'#ffa0d8', to:'#f060b8', shadow:'rgba(255,160,216,0.42)' },
     purple:  { from:'#a970f0', to:'#7c40d8', shadow:'rgba(169,112,240,0.40)' },
     orange:  { from:'#ffaa50', to:'#f07820', shadow:'rgba(255,170,80,0.42)'  },
     mint:    { from:'#3ecfa8', to:'#18a882', shadow:'rgba(62,207,168,0.42)'  },
     skyblue: { from:'#48c0f8', to:'#10a0e8', shadow:'rgba(72,192,248,0.42)'  },
-    gray:    { from:'#909090', to:'#686868', shadow:'rgba(100,100,100,0.40)' }
+    gray:    { from:'#555555', to:'#222222', shadow:'rgba(0,0,0,0.35)'       }
   };
   var c = randomColors[name] || randomColors.pink;
   r.style.setProperty('--btn-random-from',   c.from);
