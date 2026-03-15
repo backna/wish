@@ -688,6 +688,19 @@ typingBox.addEventListener('keyup', e => {
 });
 typingBox.addEventListener('focus', () => { if (running) setTimeout(moveCursorToEnd, 0); });
 
+// ── 창 전환 복귀 시 IME 재초기화 ─────────────────────────────────────────────
+// 다른 앱/창에 갔다 돌아올 때 첫 글자가 영문으로 찍히는 현상 방지
+window.addEventListener('focus', () => {
+  if (!running) return;
+  setTimeout(() => {
+    typingBox.blur();
+    setTimeout(() => {
+      typingBox.focus();
+      moveCursorToEnd();
+    }, 30);
+  }, 0);
+});
+
 // ── visibilitychange ──────────────────────────────────────────────────────────
 // 탭이 숨겨질 때: value 를 안전한 스냅샷으로 즉시 고정 + composing 리셋
 // 탭이 복귀할 때: 아무것도 하지 않음 (다음 키 입력 시 input 이벤트가 처리)
@@ -696,8 +709,16 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     composing = false;
     typingBox.value = lastSafeValue; // 오염 전에 선제적으로 고정
+  } else {
+    // 탭 복귀 시 IME 리셋 방지 — blur/focus 사이클로 한글 입력기 재초기화
+    setTimeout(() => {
+      typingBox.blur();
+      setTimeout(() => {
+        typingBox.focus();
+        moveCursorToEnd();
+      }, 30);
+    }, 0);
   }
-  // 복귀 시 recompute() 호출 제거 — blur 와 타이밍 충돌 원천 차단
 });
 
 btnLoad.addEventListener('click', () => fileInput.click());
